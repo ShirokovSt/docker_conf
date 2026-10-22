@@ -19,4 +19,5 @@ echo  -------------  ----------------------------  ---------------------------  
 echo  kafka          http://localhost:8080         localhost:9092               без логина
 echo  elasticsearch  http://localhost:5601         http://localhost:9200        без логина
 echo  activemq       http://localhost:8161/admin   tcp://localhost:61616        консоль: admin / admin123
+echo  postgres       http://localhost:5050         localhost:5434               postgres / admin123
 echo.

@@ -15,6 +15,8 @@
 
 Папки `data` и `metadata` работают только вместе: не удаляйте и не переносите одну без другой.
 
+Zenko принимает запросы только с разрешёнными именами хоста (заголовок `Host`): по умолчанию `localhost`, `127.0.0.1` и т.п. Поэтому в compose задано `ENDPOINT: zenko`: S3 Manager обращается к нему по имени `zenko`, и без этой переменной получает «Connection error». Если к zenko будет обращаться ещё что-то по другому имени, допишите его через запятую: `ENDPOINT: zenko,other-name`.
+
 ## AWS CLI
 
 Профиль `zenko` создаётся `aws-profiles.bat` в корне.
@@ -57,5 +59,6 @@ docker run -d ^
   -e S3DATAPATH=/data ^
   -e S3METADATAPATH=/metadata ^
   -e REMOTE_MANAGEMENT_DISABLE=1 ^
+  -e ENDPOINT=zenko ^
   zenko/cloudserver
 ```

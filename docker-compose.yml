@@ -1,4 +1,4 @@
-# Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ.
+# Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
@@ -47,7 +47,7 @@ services:
       - ./rustfs/data:/data
     restart: "no"
 
-  # Zenko CloudServer: API 9004 (без UI)
+  # Zenko CloudServer: API 9004 (UI - в S3 Manager)
   zenko:
     image: zenko/cloudserver
     container_name: zenko
@@ -59,6 +59,9 @@ services:
       S3DATAPATH: /data
       S3METADATAPATH: /metadata
       REMOTE_MANAGEMENT_DISABLE: "1"
+      # Zenko принимает запросы только с Host из restEndpoints (по умолчанию localhost и т.п.).
+      # "zenko" нужен для запросов из сети compose (S3 Manager). Несколько имён - через запятую.
+      ENDPOINT: zenko
     volumes:
       - ./zenko_cloudserver/data:/data
       - ./zenko_cloudserver/metadata:/metadata
@@ -230,3 +233,53 @@ services:
       - ./activemq/data:/opt/apache-activemq/data
       - ./activemq/conf/jetty-realm.properties:/opt/apache-activemq/conf/jetty-realm.properties:ro
     restart: "no"
+
+  # PostgreSQL 16: localhost:5434 (postgres / admin123).
+  # 5432 и 5433 на рабочем ПК заняты локальными PostgreSQL 12 и 15, поэтому наружу - 5434.
+  # Внутри сети compose - postgres:5432.
+  # Данные - в именованном томе postgres-data: bind mount с диска Windows не даёт initdb
+  # выставить права 0700 на папку данных. Бэкапы - postgres\backup.bat в postgres/backup.
+  postgres:
+    image: postgres:16.15
+    container_name: postgres
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/backup:/backup
+    restart: "no"
+
+  # pgAdmin 4: http://localhost:5050 - без логина, сервер "devstack postgres" уже добавлен
+  pgadmin:
+    image: dpage/pgadmin4:9.18
+    container_name: pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      # desktop-режим: вход без логина и мастер-пароля
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      # образ требует их при первом запуске, в desktop-режиме не используются
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      # список серверов берётся из postgres/pgadmin/servers.json при каждом старте
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+      PGADMIN_REPLACE_SERVERS_ON_STARTUP: "True"
+      # пароль к серверу: entrypoint копирует файл в /var/lib/pgadmin/.pgpass с правами 600
+      PGPASS_FILE: /pgadmin4/pgpass
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./postgres/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - ./postgres/pgadmin/pgpass:/pgadmin4/pgpass:ro
+    depends_on:
+      - postgres
+    restart: "no"
+
+# Именованные тома Docker (живут внутри Docker Desktop, а не в папке проекта).
+# Удаляются только явно: docker compose down -v или docker volume rm.
+volumes:
+  postgres-data:
+  pgadmin-data:

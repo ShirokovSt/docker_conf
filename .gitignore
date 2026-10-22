@@ -5,3 +5,6 @@ zenko_cloudserver/metadata/
 
 # Правила для Claude — локальные, только для этой машины
 CLAUDE.md
+
+# Бэкапы PostgreSQL (postgres\backup.bat) - это данные
+postgres/backup/

@@ -20,7 +20,7 @@ echo   3. Статус
 echo.
 echo   4. Запустить S3-хранилища
 echo   5. Остановить S3-хранилища
-echo   6. Запустить сервисы - Kafka, Elasticsearch, ActiveMQ
+echo   6. Запустить сервисы - Kafka, Elasticsearch, ActiveMQ, PostgreSQL
 echo   7. Остановить сервисы
 echo.
 echo   8. Запустить один
@@ -83,8 +83,8 @@ goto menu
 :open_ui
 echo.
 echo   1. S3 Manager - все хранилища   2. minio   3. rustfs   4. seaweedfs - Filer и Master
-echo   5. Kafka UI   6. Kibana   7. ActiveMQ
-echo   8. все сразу
+echo   5. Kafka UI   6. Kibana   7. ActiveMQ   8. pgAdmin
+echo   9. все сразу
 echo   Enter - назад
 echo.
 set "n="
@@ -96,18 +96,19 @@ if "%n%"=="4" start "" http://localhost:8888 & start "" http://localhost:9333
 if "%n%"=="5" start "" http://localhost:8080
 if "%n%"=="6" start "" http://localhost:5601
 if "%n%"=="7" start "" http://localhost:8161/admin
-if "%n%"=="8" goto open_all
+if "%n%"=="8" start "" http://localhost:5050
+if "%n%"=="9" goto open_all
 goto menu
 
 :open_all
-for %%u in (9006 9001 9003 8888 9333 8080 5601) do start "" http://localhost:%%u
+for %%u in (9006 9001 9003 8888 9333 8080 5601 5050) do start "" http://localhost:%%u
 start "" http://localhost:8161/admin
 goto menu
 
 :pick
 echo.
 echo   S3:       1. minio   2. rustfs   3. zenko   4. s3proxy   5. seaweedfs
-echo   Сервисы:  6. kafka + kafka-ui   7. elasticsearch + kibana   8. activemq
+echo   Сервисы:  6. kafka + kafka-ui   7. elasticsearch + kibana   8. activemq   10. postgres + pgadmin
 echo   UI:       9. s3manager - общий веб-интерфейс S3
 echo   При запуске хранилища 1-5 вместе с ним поднимается s3manager.
 echo   Enter - назад
@@ -125,6 +126,7 @@ if "%n%"=="6" set "svc=kafka kafka-ui"
 if "%n%"=="7" set "svc=elasticsearch kibana"
 if "%n%"=="8" set "svc=activemq"
 if "%n%"=="9" set "svc=s3manager"
+if "%n%"=="10" set "svc=postgres pgadmin"
 if not defined svc goto menu
 if "%action%"=="start" if defined is_s3 set "svc=%svc% s3manager"
 

@@ -1,6 +1,6 @@
 # Локальные сервисы в Docker
 
-Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch и ActiveMQ с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров.
+Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ и PostgreSQL с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL и pgAdmin: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
 
 ## Ссылки, порты, ключи
 
@@ -31,6 +31,9 @@
 | Kafka + Kafka UI | [kafka](kafka/README.md) | http://localhost:8080 | `localhost:9092` | без логина |
 | Elasticsearch + Kibana | [elasticsearch](elasticsearch/README.md) | http://localhost:5601 | http://localhost:9200 | без логина |
 | ActiveMQ Classic | [activemq](activemq/README.md) | http://localhost:8161/admin | `tcp://localhost:61616` (AMQP 5672, STOMP 61613, MQTT 1883, WS 61614) | консоль `admin` / `admin123`, клиенты без логина |
+| PostgreSQL 16 + pgAdmin | [postgres](postgres/README.md) | http://localhost:5050 | `localhost:5434` (`jdbc:postgresql://localhost:5434/postgres`) | БД `postgres` / `admin123`, pgAdmin без логина |
+
+PostgreSQL доступен на **5434**: порты 5432 и 5433 на рабочем ПК заняты локальными PostgreSQL 12 и 15.
 
 ## Запуск
 
@@ -41,17 +44,18 @@
 | `start-all.bat` | запускает **всё** и печатает ссылки |
 | `stop-all.bat` | останавливает всё |
 | `start-s3.bat` / `stop-s3.bat` | только S3-хранилища |
-| `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ (вместе с UI) |
+| `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL (вместе с UI) |
 | `status.bat` | статус контейнеров + ссылки |
 | `menu.bat` | меню: всё / группа / один сервис (старт, стоп, рестарт, логи), открыть UI в браузере |
 | `aws-profiles.bat` | один раз создаёт профили AWS CLI под каждое хранилище |
+| `postgres\backup.bat` | бэкап всех баз PostgreSQL в `postgres\backup\` |
 | `<папка>\start.bat`, `stop.bat`, `logs.bat` | то же для одного сервиса (`logs.bat` — логи в реальном времени, выход Ctrl+C). У kafka и elasticsearch `start`/`stop` сразу работают и с UI. |
 
 Нужен запущенный Docker Desktop. Автозапуска нет: после перезагрузки ПК контейнеры запускаются только bat-файлом.
 
 Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`. Это служебные файлы, запускать их не нужно.
 
-**Память.** Всё вместе занимает около 4–5 ГБ RAM: Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, остальное меньше. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
+**Память.** Всё вместе занимает около 4–5 ГБ RAM: Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, остальное меньше. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
 
 То же из консоли (в этой папке):
 
@@ -66,6 +70,8 @@
 | `docker compose down` | удалить контейнеры (данные в папках `data` остаются) |
 
 ## Первый запуск
+
+**PostgreSQL** при первом запуске 10–20 секунд создаёт базу. Его данные хранятся в именованном томе Docker `devstack_postgres-data`, а не в папке, поэтому **не используйте `docker compose down -v`**: флаг `-v` удаляет тома вместе с базами. Перед экспериментами делайте `postgres\backup.bat`.
 
 **После клонирования из git** папок `data` (и `zenko_cloudserver/metadata`) нет: они в `.gitignore`. Docker compose создаст их пустыми при первом запуске, хранилища начнут без бакетов.
 

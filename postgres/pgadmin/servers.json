@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "devstack postgres",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "postgres",
+      "SSLMode": "prefer",
+      "PassFile": "/var/lib/pgadmin/.pgpass",
+      "Comment": "PostgreSQL 16 из docker-compose (с хоста: localhost:5434)"
+    }
+  }
+}
