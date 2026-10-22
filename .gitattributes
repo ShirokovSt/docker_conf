@@ -1,0 +1,3 @@
+# bat-файлы всегда с CRLF: с LF cmd ломает goto / call :label (menu.bat).
+# Не зависит от настройки core.autocrlf на машине, где делают clone.
+*.bat text eol=crlf

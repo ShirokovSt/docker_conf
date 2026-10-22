@@ -1,0 +1,186 @@
+# Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ.
+# Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
+# Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
+# Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
+
+name: devstack
+
+services:
+  # MinIO: API 9000, UI 9001
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123
+    volumes:
+      - ./minio/data:/data
+    restart: "no"
+
+  # RustFS: API 9002, UI 9003
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs
+    command:
+      - --address
+      - ":9002"
+      - --console-address
+      - ":9003"
+      - --console-enable
+      - --access-key
+      - admin
+      - --secret-key
+      - admin123
+      - /data
+    ports:
+      - "9002:9002"
+      - "9003:9003"
+    environment:
+      RUSTFS_ACCESS_KEY: admin
+      RUSTFS_SECRET_KEY: admin123
+      RUSTFS_CONSOLE_ENABLE: "true"
+    volumes:
+      - ./rustfs/data:/data
+    restart: "no"
+
+  # Zenko CloudServer: API 9004 (без UI)
+  zenko:
+    image: zenko/cloudserver
+    container_name: zenko
+    ports:
+      - "9004:8000"
+    environment:
+      SCALITY_ACCESS_KEY_ID: admin
+      SCALITY_SECRET_ACCESS_KEY: admin123
+      S3DATAPATH: /data
+      S3METADATAPATH: /metadata
+      REMOTE_MANAGEMENT_DISABLE: "1"
+    volumes:
+      - ./zenko_cloudserver/data:/data
+      - ./zenko_cloudserver/metadata:/metadata
+    restart: "no"
+
+  # S3Proxy: API 9005 (без UI), бакеты = обычные папки в s3proxy/data
+  s3proxy:
+    image: andrewgaul/s3proxy
+    container_name: s3proxy
+    ports:
+      - "9005:80"
+    environment:
+      S3PROXY_IDENTITY: admin
+      S3PROXY_CREDENTIAL: admin123
+    volumes:
+      - ./s3proxy/data:/data
+    restart: "no"
+
+  # SeaweedFS: S3 API 8333, Filer UI 8888, Master UI 9333
+  seaweedfs:
+    image: chrislusf/seaweedfs
+    container_name: seaweedfs
+    command: server -s3
+    ports:
+      - "8333:8333"
+      - "8888:8888"
+      - "9333:9333"
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: admin123
+    volumes:
+      - ./seaweedfs/data:/data
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Сервисы
+  # ---------------------------------------------------------------------------
+
+  # Kafka (KRaft, без ZooKeeper): bootstrap для приложений на хосте - localhost:9092,
+  # для других контейнеров - kafka:29092
+  kafka:
+    image: apache/kafka:3.9.2
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # Фиксированный ID кластера (base64 UUID): нужен, чтобы данные в kafka/data подхватывались после пересоздания
+      CLUSTER_ID: 5L6g3nShT-eMCtK--X86sw
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:29092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xmx512m -Xms512m
+    volumes:
+      - ./kafka/data:/var/lib/kafka/data
+    restart: "no"
+
+  # Kafka UI: http://localhost:8080
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.5.0
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - kafka
+    restart: "no"
+
+  # Elasticsearch 8 без пароля: API http://localhost:9200
+  elasticsearch:
+    image: elasticsearch:8.19.23
+    container_name: elasticsearch
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      cluster.routing.allocation.disk.threshold_enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    volumes:
+      - ./elasticsearch/data:/usr/share/elasticsearch/data
+    restart: "no"
+
+  # Kibana (UI для Elasticsearch): http://localhost:5601
+  kibana:
+    image: kibana:8.19.23
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    restart: "no"
+
+  # ActiveMQ Classic: консоль http://localhost:8161/admin (admin / admin123),
+  # клиенты - tcp://localhost:61616 без логина
+  activemq:
+    image: apache/activemq-classic:5.18.7
+    container_name: activemq
+    ports:
+      - "8161:8161"     # веб-консоль
+      - "61616:61616"   # OpenWire (JMS)
+      - "5672:5672"     # AMQP
+      - "61613:61613"   # STOMP
+      - "1883:1883"     # MQTT
+      - "61614:61614"   # WebSocket
+    environment:
+      ACTIVEMQ_WEB_USER: admin
+      ACTIVEMQ_WEB_PASSWORD: admin123
+    volumes:
+      - ./activemq/data:/opt/apache-activemq/data
+    restart: "no"
