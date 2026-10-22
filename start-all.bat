@@ -9,7 +9,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Запуск всех хранилищ...
+echo Запуск всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL...
 docker compose up -d
 echo.
 docker compose ps
