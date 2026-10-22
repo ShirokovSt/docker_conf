@@ -2,14 +2,16 @@
 
 | | |
 |---|---|
-| Веб-интерфейс | нет |
+| Веб-интерфейс (S3 Manager) | http://localhost:9006/zenko/buckets |
 | S3 API | http://localhost:9004 |
 | Access key | `admin` |
 | Secret key | `admin123` |
 | Контейнер / сервис | `zenko` |
 | Данные | `zenko_cloudserver/data` (объекты), `zenko_cloudserver/metadata` (метаданные) |
 
-Запуск: `start.bat`, остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
+Запуск: `start.bat` (вместе с общим S3 Manager), остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
+
+Веб-интерфейс — общий для всех хранилищ [S3 Manager](../README.md#s3-manager): бакеты (создать, удалить), загрузка файлов и папок, скачивание (в том числе ZIP), удаление, временные ссылки. Без логина.
 
 Папки `data` и `metadata` работают только вместе: не удаляйте и не переносите одну без другой.
 

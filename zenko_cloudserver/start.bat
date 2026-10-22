@@ -8,10 +8,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Запуск zenko...
-docker compose -f "%~dp0..\docker-compose.yml" up -d zenko
+echo Запуск zenko + S3 Manager...
+docker compose -f "%~dp0..\docker-compose.yml" up -d zenko s3manager
 echo.
 echo   API - http://localhost:9004
+echo   S3 Manager - http://localhost:9006/zenko/buckets
 echo   Ключи: admin / admin123
 echo.
 pause

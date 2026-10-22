@@ -15,6 +15,8 @@
 
 Запуск: `start.bat`, остановка: `stop.bat`, логи: `logs.bat`. Всё сразу — `start-all.bat` или `start-services.bat` в корне.
 
+Пароль консоли задан в файле [conf/jetty-realm.properties](conf/jetty-realm.properties) (строка `admin: admin123, admin`), он монтируется в контейнер. Чтобы сменить пароль, поправьте файл и выполните `docker compose restart activemq`. Переменные `ACTIVEMQ_WEB_USER/ACTIVEMQ_WEB_PASSWORD` в образе 5.18 на консоль не действуют.
+
 Логин и пароль относятся только к веб-консоли. Приложения подключаются к брокеру без логина, как у ActiveMQ по умолчанию.
 
 ## Веб-консоль
@@ -61,7 +63,6 @@ docker run -d ^
   --name activemq ^
   -p 8161:8161 -p 61616:61616 -p 5672:5672 -p 61613:61613 -p 1883:1883 -p 61614:61614 ^
   -v "%cd%\activemq\data:/opt/apache-activemq/data" ^
-  -e ACTIVEMQ_WEB_USER=admin ^
-  -e ACTIVEMQ_WEB_PASSWORD=admin123 ^
+  -v "%cd%\activemq\conf\jetty-realm.properties:/opt/apache-activemq/conf/jetty-realm.properties:ro" ^
   apache/activemq-classic:5.18.7
 ```

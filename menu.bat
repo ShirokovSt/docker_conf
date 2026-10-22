@@ -82,24 +82,25 @@ goto menu
 
 :open_ui
 echo.
-echo   1. minio   2. rustfs   3. seaweedfs - Filer и Master
-echo   4. Kafka UI   5. Kibana   6. ActiveMQ
-echo   7. все сразу
+echo   1. S3 Manager - все хранилища   2. minio   3. rustfs   4. seaweedfs - Filer и Master
+echo   5. Kafka UI   6. Kibana   7. ActiveMQ
+echo   8. все сразу
 echo   Enter - назад
 echo.
 set "n="
 set /p "n=Что открыть: "
-if "%n%"=="1" start "" http://localhost:9001
-if "%n%"=="2" start "" http://localhost:9003
-if "%n%"=="3" start "" http://localhost:8888 & start "" http://localhost:9333
-if "%n%"=="4" start "" http://localhost:8080
-if "%n%"=="5" start "" http://localhost:5601
-if "%n%"=="6" start "" http://localhost:8161/admin
-if "%n%"=="7" goto open_all
+if "%n%"=="1" start "" http://localhost:9006
+if "%n%"=="2" start "" http://localhost:9001
+if "%n%"=="3" start "" http://localhost:9003
+if "%n%"=="4" start "" http://localhost:8888 & start "" http://localhost:9333
+if "%n%"=="5" start "" http://localhost:8080
+if "%n%"=="6" start "" http://localhost:5601
+if "%n%"=="7" start "" http://localhost:8161/admin
+if "%n%"=="8" goto open_all
 goto menu
 
 :open_all
-for %%u in (9001 9003 8888 9333 8080 5601) do start "" http://localhost:%%u
+for %%u in (9006 9001 9003 8888 9333 8080 5601) do start "" http://localhost:%%u
 start "" http://localhost:8161/admin
 goto menu
 
@@ -107,20 +108,25 @@ goto menu
 echo.
 echo   S3:       1. minio   2. rustfs   3. zenko   4. s3proxy   5. seaweedfs
 echo   Сервисы:  6. kafka + kafka-ui   7. elasticsearch + kibana   8. activemq
+echo   UI:       9. s3manager - общий веб-интерфейс S3
+echo   При запуске хранилища 1-5 вместе с ним поднимается s3manager.
 echo   Enter - назад
 echo.
 set "svc="
+set "is_s3="
 set "n="
 set /p "n=Сервис: "
-if "%n%"=="1" set "svc=minio"
-if "%n%"=="2" set "svc=rustfs"
-if "%n%"=="3" set "svc=zenko"
-if "%n%"=="4" set "svc=s3proxy"
-if "%n%"=="5" set "svc=seaweedfs"
+if "%n%"=="1" set "svc=minio"     & set "is_s3=1"
+if "%n%"=="2" set "svc=rustfs"    & set "is_s3=1"
+if "%n%"=="3" set "svc=zenko"     & set "is_s3=1"
+if "%n%"=="4" set "svc=s3proxy"   & set "is_s3=1"
+if "%n%"=="5" set "svc=seaweedfs" & set "is_s3=1"
 if "%n%"=="6" set "svc=kafka kafka-ui"
 if "%n%"=="7" set "svc=elasticsearch kibana"
 if "%n%"=="8" set "svc=activemq"
+if "%n%"=="9" set "svc=s3manager"
 if not defined svc goto menu
+if "%action%"=="start" if defined is_s3 set "svc=%svc% s3manager"
 
 if "%action%"=="start"   docker compose up -d %svc%
 if "%action%"=="stop"    docker compose stop %svc%

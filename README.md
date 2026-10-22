@@ -10,13 +10,19 @@
 |---|---|---|---|---|
 | minio | [minio](minio/README.md) | http://localhost:9001 | http://localhost:9000 | `admin` / `admin123` |
 | rustfs | [rustfs](rustfs/README.md) | http://localhost:9003 | http://localhost:9002 | `admin` / `admin123` |
-| zenko | [zenko_cloudserver](zenko_cloudserver/README.md) | — | http://localhost:9004 | `admin` / `admin123` |
-| s3proxy | [s3proxy](s3proxy/README.md) | — | http://localhost:9005 | `admin` / `admin123` |
+| zenko | [zenko_cloudserver](zenko_cloudserver/README.md) | http://localhost:9006/zenko/buckets | http://localhost:9004 | `admin` / `admin123` |
+| s3proxy | [s3proxy](s3proxy/README.md) | http://localhost:9006/s3proxy/buckets | http://localhost:9005 | `admin` / `admin123` |
 | seaweedfs | [seaweedfs](seaweedfs/README.md) | http://localhost:8888 (Filer), http://localhost:9333 (Master) | http://localhost:8333 | `admin` / `admin123` |
 
 Ключи у всех одинаковые: **`admin` / `admin123`**, регион `us-east-1`. Пароль не короче 8 символов — этого требует MinIO, поэтому не `admin/admin`.
 
 После смены ключей старые профили и настройки клиентов перестанут подходить: заново запустите `aws-profiles.bat`, а для `mc` в minio заново выполните `mc alias set` (см. [minio/README.md](minio/README.md)). Бакеты и файлы от смены ключей не зависят.
+
+### S3 Manager
+
+Общий веб-интерфейс для **всех пяти** хранилищ: http://localhost:9006. Страница хранилища — `http://localhost:9006/<хранилище>/buckets` (`minio`, `rustfs`, `zenko`, `s3proxy`, `seaweedfs`). Умеет: бакеты (создать, удалить), загрузку файлов и папок, скачивание (в том числе ZIP), удаление, временные ссылки, метаданные. Логина нет.
+
+Для zenko и s3proxy это единственный UI, у остальных он дополняет родной. Поднимается вместе с любым хранилищем (`<папка>\start.bat`, `start-s3.bat`, `start-all.bat`). Если какое-то хранилище выключено, на его странице будет ошибка подключения — остальные работают.
 
 ### Сервисы
 

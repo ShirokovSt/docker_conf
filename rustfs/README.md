@@ -3,13 +3,14 @@
 | | |
 |---|---|
 | Веб-интерфейс | http://localhost:9003 |
+| Веб-интерфейс (S3 Manager) | http://localhost:9006/rustfs/buckets |
 | S3 API | http://localhost:9002 |
 | Access key | `admin` |
 | Secret key | `admin123` |
 | Контейнер / сервис | `rustfs` |
 | Данные | `rustfs/data` |
 
-Запуск: `start.bat`, остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
+Запуск: `start.bat` (вместе с общим S3 Manager), остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
 
 Бакеты удобно смотреть и создавать в веб-интерфейсе (логин — ключи из таблицы).
 

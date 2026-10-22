@@ -3,13 +3,14 @@
 | | |
 |---|---|
 | Веб-интерфейс | http://localhost:9001 |
+| Веб-интерфейс (S3 Manager) | http://localhost:9006/minio/buckets |
 | S3 API | http://localhost:9000 |
 | Access key | `admin` |
 | Secret key | `admin123` |
 | Контейнер / сервис | `minio` |
 | Данные | `minio/data` (каждый бакет — подпапка) |
 
-Запуск: `start.bat`, остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
+Запуск: `start.bat` (вместе с общим S3 Manager), остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
 
 ## AWS CLI
 

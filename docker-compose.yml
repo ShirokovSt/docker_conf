@@ -93,6 +93,52 @@ services:
       - ./seaweedfs/data:/data
     restart: "no"
 
+  # S3 Manager: общий веб-интерфейс для всех S3-хранилищ - http://localhost:9006
+  # Страница хранилища: http://localhost:9006/<NAME>/buckets. Номера S3_N_ - подряд, без пропусков.
+  # Хранилища подключены по внутренней сети compose (имя сервиса:внутренний порт).
+  s3manager:
+    image: cloudlena/s3manager:v0.11.1
+    container_name: s3manager
+    ports:
+      - "9006:8080"
+    environment:
+      S3_1_NAME: minio
+      S3_1_ENDPOINT: minio:9000
+      S3_1_ACCESS_KEY_ID: admin
+      S3_1_SECRET_ACCESS_KEY: admin123
+      S3_1_REGION: us-east-1
+      S3_1_USE_SSL: "false"
+      S3_1_BUCKET_LOOKUP: Path
+      S3_2_NAME: rustfs
+      S3_2_ENDPOINT: rustfs:9002
+      S3_2_ACCESS_KEY_ID: admin
+      S3_2_SECRET_ACCESS_KEY: admin123
+      S3_2_REGION: us-east-1
+      S3_2_USE_SSL: "false"
+      S3_2_BUCKET_LOOKUP: Path
+      S3_3_NAME: zenko
+      S3_3_ENDPOINT: zenko:8000
+      S3_3_ACCESS_KEY_ID: admin
+      S3_3_SECRET_ACCESS_KEY: admin123
+      S3_3_REGION: us-east-1
+      S3_3_USE_SSL: "false"
+      S3_3_BUCKET_LOOKUP: Path
+      S3_4_NAME: s3proxy
+      S3_4_ENDPOINT: s3proxy:80
+      S3_4_ACCESS_KEY_ID: admin
+      S3_4_SECRET_ACCESS_KEY: admin123
+      S3_4_REGION: us-east-1
+      S3_4_USE_SSL: "false"
+      S3_4_BUCKET_LOOKUP: Path
+      S3_5_NAME: seaweedfs
+      S3_5_ENDPOINT: seaweedfs:8333
+      S3_5_ACCESS_KEY_ID: admin
+      S3_5_SECRET_ACCESS_KEY: admin123
+      S3_5_REGION: us-east-1
+      S3_5_USE_SSL: "false"
+      S3_5_BUCKET_LOOKUP: Path
+    restart: "no"
+
   # ---------------------------------------------------------------------------
   # Сервисы
   # ---------------------------------------------------------------------------
@@ -178,9 +224,9 @@ services:
       - "61613:61613"   # STOMP
       - "1883:1883"     # MQTT
       - "61614:61614"   # WebSocket
-    environment:
-      ACTIVEMQ_WEB_USER: admin
-      ACTIVEMQ_WEB_PASSWORD: admin123
+    # Пароль консоли задаётся файлом activemq/conf/jetty-realm.properties.
+    # ACTIVEMQ_WEB_USER/PASSWORD в образе 5.18 правят users.properties, а консоль их не читает.
     volumes:
       - ./activemq/data:/opt/apache-activemq/data
+      - ./activemq/conf/jetty-realm.properties:/opt/apache-activemq/conf/jetty-realm.properties:ro
     restart: "no"

@@ -4,13 +4,14 @@
 |---|---|
 | Filer UI (файлы и бакеты) | http://localhost:8888 — бакеты в http://localhost:8888/buckets/ |
 | Master UI (тома, кластер) | http://localhost:9333 |
+| Веб-интерфейс (S3 Manager) | http://localhost:9006/seaweedfs/buckets |
 | S3 API | http://localhost:8333 |
 | Access key | `admin` |
 | Secret key | `admin123` |
 | Контейнер / сервис | `seaweedfs` |
 | Данные | `seaweedfs/data` (файлы томов `*.dat/*.idx`, напрямую не читаются) |
 
-Запуск: `start.bat`, остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
+Запуск: `start.bat` (вместе с общим S3 Manager), остановка: `stop.bat`, логи: `logs.bat` (в этой папке). Всё сразу — `start-all.bat` в корне.
 
 ## AWS CLI
 
