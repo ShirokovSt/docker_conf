@@ -56,6 +56,12 @@
 
 Пути в коде — это пути **на стороне Spark**, а не `C:\...`. Рабочая папка Spark — `/data`, поэтому путь без папки (`test.json`, `input/test.json`) ищется прямо в `spark\data`, то есть так, как вы видите файлы в File Browser. Полный путь `/data/...` тоже работает. Результаты, записанные в `/data/out`, сразу видны в File Browser и в проводнике.
 
+**Права на файлы.** File Browser и Spark работают под одним пользователем (uid 185), поэтому файлы, загруженные через File Browser, Spark читает, а результаты Spark можно удалять в File Browser. Если Spark пишет `Permission denied` на файл, созданный раньше (до этой настройки), выдайте права один раз:
+
+```bat
+docker exec -u 0 spark chmod -R a+rwX /data
+```
+
 ## Подключение из приложения
 
 Зависимости клиента — той же версии, что и сервер (3.5.2):
@@ -134,7 +140,11 @@ docker run -d ^
 
 docker run -d ^
   --name spark-files ^
-  -p 8090:80 ^
+  -u 185:185 ^
+  --entrypoint /bin/filebrowser ^
+  --no-healthcheck ^
+  -p 8090:8080 ^
   -v "%cd%\spark\data:/srv" ^
-  filebrowser/filebrowser:v2.63.23 --noauth
+  filebrowser/filebrowser:v2.63.23 ^
+  --noauth --address 0.0.0.0 --port 8080 --root /srv --database /tmp/filebrowser.db
 ```

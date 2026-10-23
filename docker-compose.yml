@@ -307,12 +307,20 @@ services:
     restart: "no"
 
   # File Browser: веб-доступ к файлам Spark (папка spark/data) - http://localhost:8090, без логина
+  # Работает под тем же пользователем, что и Spark (uid 185): иначе Spark не может читать
+  # загруженные сюда файлы (Permission denied), а File Browser - удалять результаты Spark.
+  # Поэтому запуск напрямую, без init.sh образа (он пишет в /config от uid 1000), порт 8080
+  # (непривилегированный), настройки File Browser - во временной БД, при пересоздании без логина.
   spark-files:
     image: filebrowser/filebrowser:v2.63.23
     container_name: spark-files
-    command: ["--noauth"]
+    user: "185:185"
+    entrypoint: ["/bin/filebrowser"]
+    command: ["--noauth", "--address", "0.0.0.0", "--port", "8080", "--root", "/srv", "--database", "/tmp/filebrowser.db"]
+    healthcheck:
+      disable: true   # штатный healthcheck образа рассчитан на init.sh и порт 80
     ports:
-      - "8090:80"
+      - "8090:8080"
     volumes:
       - ./spark/data:/srv
     restart: "no"
