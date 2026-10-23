@@ -1,4 +1,4 @@
-# Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL.
+# Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
@@ -235,7 +235,6 @@ services:
     restart: "no"
 
   # PostgreSQL 16: localhost:5434 (postgres / admin123).
-  # 5432 и 5433 на рабочем ПК заняты локальными PostgreSQL 12 и 15, поэтому наружу - 5434.
   # Внутри сети compose - postgres:5432.
   # Данные - в именованном томе postgres-data: bind mount с диска Windows не даёт initdb
   # выставить права 0700 на папку данных. Бэкапы - postgres\backup.bat в postgres/backup.
@@ -276,6 +275,41 @@ services:
       - ./postgres/pgadmin/pgpass:/pgadmin4/pgpass:ro
     depends_on:
       - postgres
+    restart: "no"
+
+  # Spark 3.5.9 - Spark Connect server: sc://localhost:15002, Spark UI http://localhost:4040
+  # Без Hadoop-кластера (HDFS/YARN не нужны): local[*], драйвер и исполнители в одном контейнере.
+  # Файлы - папка spark/data (в Spark - /data). Настройки - spark/conf/spark-defaults.conf.
+  spark:
+    image: spark:3.5.9-scala2.12-java17-ubuntu
+    container_name: spark
+    command:
+      - /opt/spark/sbin/start-connect-server.sh
+      - --packages
+      # в 3.5 Spark Connect не входит в дистрибутив; версия = версии образа
+      - org.apache.spark:spark-connect_2.12:3.5.9
+    environment:
+      SPARK_NO_DAEMONIZE: "true"      # сервер в foreground, логи - в docker logs
+      SPARK_LOG_DIR: /tmp/spark-logs  # служебные файлы spark-daemon.sh
+    ports:
+      - "15002:15002"   # Spark Connect
+      - "4040:4040"     # Spark UI
+    volumes:
+      - ./spark/data:/data
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      # кэш скачанного spark-connect: повторные старты без интернета
+      - ./spark/ivy:/opt/spark/ivy
+    restart: "no"
+
+  # File Browser: веб-доступ к файлам Spark (папка spark/data) - http://localhost:8090, без логина
+  spark-files:
+    image: filebrowser/filebrowser:v2.63.23
+    container_name: spark-files
+    command: ["--noauth"]
+    ports:
+      - "8090:80"
+    volumes:
+      - ./spark/data:/srv
     restart: "no"
 
 # Именованные тома Docker (живут внутри Docker Desktop, а не в папке проекта).
