@@ -8,12 +8,24 @@
 | Папка с файлами | `spark\data` на диске = `/data` внутри Spark |
 | Логин | не нужен |
 | Контейнеры / сервисы | `spark`, `spark-files` |
-| Версия | Spark 3.5.9 (Scala 2.12, Java 17), режим `local[*]` |
+| Версия | Spark 3.5.2 (Scala 2.12, Java 17), режим `local[*]` |
 | Настройки | [conf/spark-defaults.conf](conf/spark-defaults.conf) |
+| Свои jar (classpath Spark) | папка `spark\jars` — см. [jars/README.md](jars/README.md) |
 
 Запуск: `start.bat` (Spark + File Browser), остановка: `stop.bat`, логи Spark: `logs.bat`. Всё сразу — `start-all.bat` или `start-services.bat` в корне.
 
 **Первый запуск — до минуты.** В Spark 3.5 модуль Spark Connect не входит в дистрибутив, при первом старте он скачивается из Maven Central (нужен интернет) и кэшируется в `spark\ivy`. Следующие запуски — без интернета, за несколько секунд. Сервер готов, когда в `logs.bat` появится строка про `Spark Connect server started` на порту 15002.
+
+## Свои jar
+
+Папка `spark\jars` — для jar, которые должны быть на сервере Spark заранее: драйверы JDBC, коннекторы, библиотеки для UDF и источников данных. Все `*.jar` из неё при старте попадают в classpath Spark (`spark.driver.extraClassPath` в `spark-defaults.conf`).
+
+- Положили или заменили jar — перезапустите Spark: `docker compose restart spark` или `stop.bat` + `start.bat`.
+- Jar должны подходить к Spark 3.5.2 / Scala 2.12.
+- Содержимое папки в git не попадает (кроме её README).
+- Проверить, что jar видны Spark: `docker exec spark ls /opt/spark/extra-jars`, а в Spark UI на вкладке Environment они есть в Classpath Entries.
+
+Отличие от `addArtifact`: jar, который приложение отправляет через Spark Connect, живёт только в своей сессии. Jar из `spark\jars` доступны всегда и всем сессиям — так подключаются тяжёлые зависимости, драйверы JDBC и форматы источников данных.
 
 ## Без Hadoop
 
@@ -46,7 +58,7 @@
 
 ## Подключение из приложения
 
-Зависимости клиента — той же ветки 3.5, что и сервер (с сервером 3.5.9 работает и клиент 3.5.2):
+Зависимости клиента — той же версии, что и сервер (3.5.2):
 
 ```xml
 <dependency>
@@ -112,11 +124,12 @@ docker run -d ^
   -p 15002:15002 -p 4040:4040 ^
   -v "%cd%\spark\data:/data" ^
   -v "%cd%\spark\conf\spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro" ^
+  -v "%cd%\spark\jars:/opt/spark/extra-jars:ro" ^
   -v "%cd%\spark\ivy:/opt/spark/ivy" ^
   -e SPARK_NO_DAEMONIZE=true ^
   -e SPARK_LOG_DIR=/tmp/spark-logs ^
-  spark:3.5.9-scala2.12-java17-ubuntu ^
-  /opt/spark/sbin/start-connect-server.sh --packages org.apache.spark:spark-connect_2.12:3.5.9
+  spark:3.5.2-scala2.12-java17-ubuntu ^
+  /opt/spark/sbin/start-connect-server.sh --packages org.apache.spark:spark-connect_2.12:3.5.2
 
 docker run -d ^
   --name spark-files ^

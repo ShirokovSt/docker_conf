@@ -32,7 +32,7 @@
 | Elasticsearch + Kibana | [elasticsearch](elasticsearch/README.md) | http://localhost:5601 | http://localhost:9200 | без логина |
 | ActiveMQ Classic | [activemq](activemq/README.md) | http://localhost:8161/admin | `tcp://localhost:61616` (AMQP 5672, STOMP 61613, MQTT 1883, WS 61614) | консоль `admin` / `admin123`, клиенты без логина |
 | PostgreSQL 16 + pgAdmin | [postgres](postgres/README.md) | http://localhost:5050 | `localhost:5434` (`jdbc:postgresql://localhost:5434/postgres`) | БД `postgres` / `admin123`, pgAdmin без логина |
-| Spark 3.5.9 (Spark Connect) + File Browser | [spark](spark/README.md) | http://localhost:4040 (Spark UI), http://localhost:8090 (файлы) | `sc://localhost:15002`, файлы — `/data` (папка `spark\data`) | без логина |
+| Spark 3.5.2 (Spark Connect) + File Browser | [spark](spark/README.md) | http://localhost:4040 (Spark UI), http://localhost:8090 (файлы) | `sc://localhost:15002`, файлы — `/data` (папка `spark\data`) | без логина |
 
 Spark работает без Hadoop-кластера (HDFS/YARN не нужны): файлы лежат в папке `spark\data`, работать с ними удобно через File Browser — подробнее в [spark/README.md](spark/README.md).
 

@@ -277,17 +277,18 @@ services:
       - postgres
     restart: "no"
 
-  # Spark 3.5.9 - Spark Connect server: sc://localhost:15002, Spark UI http://localhost:4040
+  # Spark 3.5.2 - Spark Connect server: sc://localhost:15002, Spark UI http://localhost:4040
   # Без Hadoop-кластера (HDFS/YARN не нужны): local[*], драйвер и исполнители в одном контейнере.
   # Файлы - папка spark/data (в Spark - /data). Настройки - spark/conf/spark-defaults.conf.
+  # Свои jar для classpath Spark - папка spark/jars (в Spark - /opt/spark/extra-jars).
   spark:
-    image: spark:3.5.9-scala2.12-java17-ubuntu
+    image: spark:3.5.2-scala2.12-java17-ubuntu
     container_name: spark
     command:
       - /opt/spark/sbin/start-connect-server.sh
       - --packages
       # в 3.5 Spark Connect не входит в дистрибутив; версия = версии образа
-      - org.apache.spark:spark-connect_2.12:3.5.9
+      - org.apache.spark:spark-connect_2.12:3.5.2
     environment:
       SPARK_NO_DAEMONIZE: "true"      # сервер в foreground, логи - в docker logs
       SPARK_LOG_DIR: /tmp/spark-logs  # служебные файлы spark-daemon.sh
@@ -297,6 +298,8 @@ services:
     volumes:
       - ./spark/data:/data
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      # свои jar: подключаются в classpath через spark.driver.extraClassPath
+      - ./spark/jars:/opt/spark/extra-jars:ro
       # кэш скачанного spark-connect: повторные старты без интернета
       - ./spark/ivy:/opt/spark/ivy
     restart: "no"

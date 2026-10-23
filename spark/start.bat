@@ -15,7 +15,8 @@ echo   Spark Connect - sc://localhost:15002
 echo   Spark UI      - http://localhost:4040
 echo   Файлы Spark   - http://localhost:8090  (папка spark\data, в Spark - /data)
 echo.
-echo   Первый запуск - до минуты: скачивается модуль spark-connect.
+echo   Свои jar      - папка spark\jars (после изменения - перезапуск spark)
+echo   Первый запуск - до минуты: скачивается модуль Spark Connect.
 echo   Готовность смотрите в logs.bat.
 echo.
 pause

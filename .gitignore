@@ -11,3 +11,7 @@ postgres/backup/
 
 # Кэш скачанных Spark-пакетов (--packages)
 spark/ivy/
+
+# Свои jar для Spark (classpath сервера) - локальные, в репозиторий не попадают
+spark/jars/*
+!spark/jars/README.md
