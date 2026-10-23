@@ -284,6 +284,8 @@ services:
   spark:
     image: spark:3.5.2-scala2.12-java17-ubuntu
     container_name: spark
+    # Рабочая папка = spark/data: путь без папки (test.json) ищется в корне File Browser
+    working_dir: /data
     command:
       - /opt/spark/sbin/start-connect-server.sh
       - --packages

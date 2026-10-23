@@ -44,7 +44,7 @@
 |---|---|
 | File Browser | http://localhost:8090 — корень |
 | Проводник | `docker_conf\spark\data\` |
-| Код Spark | `/data/...` |
+| Код Spark | `test.json` или `/data/test.json` — одно и то же |
 
 В File Browser можно:
 - загружать файлы и папки (кнопка Upload или перетаскиванием);
@@ -54,7 +54,7 @@
 - просматривать и редактировать текстовые файлы (csv, json, txt);
 - искать по имени.
 
-Пути в коде — это пути **на стороне Spark**: `/data/input.csv`, а не `C:\...`. Результаты, записанные в `/data/out`, сразу видны в File Browser и в проводнике.
+Пути в коде — это пути **на стороне Spark**, а не `C:\...`. Рабочая папка Spark — `/data`, поэтому путь без папки (`test.json`, `input/test.json`) ищется прямо в `spark\data`, то есть так, как вы видите файлы в File Browser. Полный путь `/data/...` тоже работает. Результаты, записанные в `/data/out`, сразу видны в File Browser и в проводнике.
 
 ## Подключение из приложения
 
@@ -121,6 +121,7 @@ http://localhost:4040 — работает, пока запущен Spark:
 ```bat
 docker run -d ^
   --name spark ^
+  -w /data ^
   -p 15002:15002 -p 4040:4040 ^
   -v "%cd%\spark\data:/data" ^
   -v "%cd%\spark\conf\spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro" ^
