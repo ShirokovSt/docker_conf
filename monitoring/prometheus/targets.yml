@@ -1,0 +1,15 @@
+# Spring Boot приложения на этом компьютере, которые читает Prometheus.
+# Файл перечитывается сам примерно раз в 30 секунд - перезапуск не нужен.
+#
+# Порт по умолчанию - 8199. Приложение на другом порту - допишите строку в targets.
+# __metrics_path__ - путь к эндпоинту с учётом server.servlet.context-path приложения:
+#   без context-path:        /actuator/prometheus
+#   context-path /app:       /app/actuator/prometheus
+# Незапущенные приложения просто будут DOWN на http://localhost:9090/targets.
+#
+# Примеры - см. monitoring/README.md.
+
+- targets:
+    - host.docker.internal:8199
+  labels:
+    __metrics_path__: /actuator/prometheus

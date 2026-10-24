@@ -9,7 +9,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Остановка всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark...
+echo Остановка всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг...
 docker compose stop
 echo.
 docker compose ps -a

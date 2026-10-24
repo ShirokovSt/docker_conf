@@ -22,4 +22,6 @@ echo  activemq       http://localhost:8161/admin   tcp://localhost:61616        
 echo  postgres       http://localhost:5050         localhost:5434               postgres / admin123
 echo  spark          http://localhost:4040         sc://localhost:15002         без логина
 echo  файлы Spark    http://localhost:8090         папка spark\data = /data    без логина
+echo  grafana        http://localhost:3000         -                            без логина
+echo  prometheus     http://localhost:9090/targets читает Spring на :8199       без логина
 echo.

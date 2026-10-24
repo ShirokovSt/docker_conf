@@ -1,0 +1,13 @@
+# Дашборды из monitoring/grafana/dashboards (в контейнере - /etc/grafana/dashboards).
+# Они только для чтения: чтобы поменять, сохраните копию (Save as) - она останется в Grafana.
+apiVersion: 1
+
+providers:
+  - name: docker_conf
+    folder: docker_conf
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards

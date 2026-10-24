@@ -1,0 +1,21 @@
+# Настройки Prometheus (контейнер prometheus).
+# Какие приложения читать - в targets.yml рядом, его менять можно без перезапуска.
+# После правки этого файла: docker compose restart prometheus
+
+global:
+  scrape_interval: 15s      # как часто читать метрики
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Spring Boot приложения на этом компьютере: список - targets.yml
+  - job_name: spring
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/conf/targets.yml
+        refresh_interval: 30s   # targets.yml перечитывается сам
+
+  # Сам Prometheus (для проверки, что всё работает)
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

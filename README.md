@@ -1,6 +1,6 @@
 # Локальные сервисы в Docker
 
-Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL и Spark с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL и pgAdmin: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
+Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark и мониторинг Spring-приложений (Prometheus + Grafana) с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus и Grafana: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
 
 ## Ссылки, порты, ключи
 
@@ -33,6 +33,7 @@
 | ActiveMQ Classic | [activemq](activemq/README.md) | http://localhost:8161/admin | `tcp://localhost:61616` (AMQP 5672, STOMP 61613, MQTT 1883, WS 61614) | консоль `admin` / `admin123`, клиенты без логина |
 | PostgreSQL 16 + pgAdmin | [postgres](postgres/README.md) | http://localhost:5050 | `localhost:5434` (`jdbc:postgresql://localhost:5434/postgres`) | БД `postgres` / `admin123`, pgAdmin без логина |
 | Spark 3.5.2 (Spark Connect) + File Browser | [spark](spark/README.md) | http://localhost:4040 (Spark UI), http://localhost:8090 (файлы) | `sc://localhost:15002`, файлы — `/data` (папка `spark\data`) | без логина |
+| Мониторинг: Prometheus + Grafana | [monitoring](monitoring/README.md) | http://localhost:3000 (Grafana), http://localhost:9090 (Prometheus) | сам читает `/actuator/prometheus` Spring-приложений на порту **8199** (другие порты — в `monitoring\prometheus\targets.yml`) | без логина |
 
 Spark работает без Hadoop-кластера (HDFS/YARN не нужны): файлы лежат в папке `spark\data`, работать с ними удобно через File Browser — подробнее в [spark/README.md](spark/README.md).
 
@@ -47,7 +48,7 @@ PostgreSQL доступен на порту **5434**.
 | `start-all.bat` | запускает **всё** и печатает ссылки |
 | `stop-all.bat` | останавливает всё |
 | `start-s3.bat` / `stop-s3.bat` | только S3-хранилища |
-| `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark (вместе с UI) |
+| `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг (вместе с UI) |
 | `status.bat` | статус контейнеров + ссылки |
 | `menu.bat` | меню: всё / группа / один сервис (старт, стоп, рестарт, логи), открыть UI в браузере |
 | `aws-profiles.bat` | один раз создаёт профили AWS CLI под каждое хранилище |
@@ -58,7 +59,7 @@ PostgreSQL доступен на порту **5434**.
 
 Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`. Это служебные файлы, запускать их не нужно.
 
-**Память.** Всё вместе занимает около 7 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, остальное меньше. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
+**Память.** Всё вместе занимает около 7 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, остальное меньше. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
 
 То же из консоли (в этой папке):
 

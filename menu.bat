@@ -20,7 +20,7 @@ echo   3. Статус
 echo.
 echo   4. Запустить S3-хранилища
 echo   5. Остановить S3-хранилища
-echo   6. Запустить сервисы - Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark
+echo   6. Запустить сервисы - Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг
 echo   7. Остановить сервисы
 echo.
 echo   8. Запустить один
@@ -84,7 +84,8 @@ goto menu
 echo.
 echo   1. S3 Manager - все хранилища   2. minio   3. rustfs   4. seaweedfs - Filer и Master
 echo   5. Kafka UI   6. Kibana   7. ActiveMQ   8. pgAdmin   9. Spark UI   10. Файлы Spark
-echo   11. все сразу
+echo   11. Grafana   12. Prometheus
+echo   13. все сразу
 echo   Enter - назад
 echo.
 set "n="
@@ -99,11 +100,13 @@ if "%n%"=="7" start "" http://localhost:8161/admin
 if "%n%"=="8" start "" http://localhost:5050
 if "%n%"=="9" start "" http://localhost:4040
 if "%n%"=="10" start "" http://localhost:8090
-if "%n%"=="11" goto open_all
+if "%n%"=="11" start "" http://localhost:3000
+if "%n%"=="12" start "" http://localhost:9090/targets
+if "%n%"=="13" goto open_all
 goto menu
 
 :open_all
-for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090) do start "" http://localhost:%%u
+for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090 3000 9090) do start "" http://localhost:%%u
 start "" http://localhost:8161/admin
 goto menu
 
@@ -111,7 +114,7 @@ goto menu
 echo.
 echo   S3:       1. minio   2. rustfs   3. zenko   4. s3proxy   5. seaweedfs
 echo   Сервисы:  6. kafka + kafka-ui   7. elasticsearch + kibana   8. activemq   10. postgres + pgadmin
-echo             11. spark + spark-files
+echo             11. spark + spark-files   12. prometheus + grafana
 echo   UI:       9. s3manager - общий веб-интерфейс S3
 echo   При запуске хранилища 1-5 вместе с ним поднимается s3manager.
 echo   Enter - назад
@@ -131,6 +134,7 @@ if "%n%"=="8" set "svc=activemq"
 if "%n%"=="9" set "svc=s3manager"
 if "%n%"=="10" set "svc=postgres pgadmin"
 if "%n%"=="11" set "svc=spark spark-files"
+if "%n%"=="12" set "svc=prometheus grafana"
 if not defined svc goto menu
 if "%action%"=="start" if defined is_s3 set "svc=%svc% s3manager"
 
