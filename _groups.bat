@@ -2,6 +2,7 @@
 rem Служебный: списки сервисов по группам. Единственное место, где они перечислены.
 rem Используется в start-s3 / stop-s3 / start-services / stop-services и menu.bat.
 set "S3_SERVICES=minio rustfs zenko s3proxy seaweedfs s3manager"
+set "APP_SERVICES=kafka kafka-ui elasticsearch kibana activemq postgres pgadmin spark spark-files prometheus grafana converter"
 set "APP_SERVICES=kafka kafka-ui elasticsearch kibana activemq postgres pgadmin spark spark-files prometheus grafana"
 rem TeamCity (teamcity/docker-compose.yml): сервер, его БД, агент 1, Adminer (БД) и Beszel (графики агентов)
 rem и добавленные агенты 2, 3 - те,

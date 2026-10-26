@@ -24,6 +24,7 @@ echo  spark          http://localhost:4040         sc://localhost:15002         
 echo  файлы Spark    http://localhost:8090         папка spark\data = /data    без логина
 echo  grafana        http://localhost:3000         -                            без логина
 echo  prometheus     http://localhost:9090/targets читает Spring на :8199       без логина
+echo  converter      http://localhost:8095/swagger-ui.html   http://localhost:8095/lool/convert-to   без логина
 echo  teamcity       http://localhost:8111         агенты, Remote Run из IDEA   учётка из мастера
 echo  beszel         http://localhost:8091         графики агентов              admin@example.com / admin123
 echo  adminer        http://localhost:8082/?pgsql=teamcity-db   teamcity-db:5432   teamcity / admin123

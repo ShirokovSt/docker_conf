@@ -9,7 +9,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Остановка всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, TeamCity...
+echo Остановка всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, TeamCity...
 rem добавленные агенты TeamCity (2, 3) - если есть
 call "%~dp0_groups.bat"
 if defined CI_EXTRA docker compose stop%CI_EXTRA%
