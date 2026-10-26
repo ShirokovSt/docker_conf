@@ -7,6 +7,8 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+rem сеть devstack_default с подсетью, свободной на этом ПК (один раз создаёт _net.bat)
+call "%~dp0..\_net.bat" || (pause & exit /b 1)
 
 echo Запуск spark spark-files...
 docker compose -f "%~dp0..\docker-compose.yml" up -d spark spark-files

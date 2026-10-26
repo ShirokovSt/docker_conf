@@ -1,3 +1,4 @@
+# Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark; TeamCity - через include.
 # Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark,
 # мониторинг (Prometheus + Grafana).
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
@@ -5,6 +6,10 @@
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
 
 name: devstack
+
+# TeamCity (сервер, его БД, агенты) описан в своей папке - teamcity/docker-compose.yml.
+include:
+  - teamcity/docker-compose.yml
 
 services:
   # MinIO: API 9000, UI 9001
@@ -366,6 +371,15 @@ services:
     depends_on:
       - prometheus
     restart: "no"
+
+# Сеть проекта devstack_default создаётся не compose, а _net.bat при первом запуске из bat-файлов: он подбирает
+# подсеть, свободную на этом ПК. Сам Docker берёт подсети из 172.17-172.31, а там же бывают сети, к которым
+# подключён ПК (VPN и т.п.): при пересечении контейнеры до них не достают. Compose подключается к готовой сети
+# и её подсеть не меняет. Если сети нет (запуск docker compose up вручную до первого запуска bat) - start-all.bat.
+networks:
+  default:
+    name: devstack_default
+    external: true
 
 # Именованные тома Docker (живут внутри Docker Desktop, а не в папке проекта).
 # Удаляются только явно: docker compose down -v или docker volume rm.

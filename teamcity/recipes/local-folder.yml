@@ -1,0 +1,17 @@
+name: devstack/local-folder
+title: Локальная папка
+version: 1.0.0
+description: |-
+  Синхронизирует папку проекта с этого ПК в рабочую папку сборки (devstack-sync в образе агента).
+  Копируются только изменения с прошлой сборки, результаты сборки на агенте сохраняются.
+  Ставится первым шагом, дальше - обычные шаги Gradle / Maven. Подробно - teamcity/README.md.
+inputs:
+  - path:
+      type: text
+      required: true
+      label: Папка проекта
+      description: Путь Windows, например D:\work\my-service (или /host/d/work/my-service)
+steps:
+  - name: Синхронизация локальной папки
+    script: |-
+      devstack-sync "%path%"

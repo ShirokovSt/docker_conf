@@ -4,3 +4,10 @@
 
 # pgpass читает libpq: строки должны быть с LF, иначе \r попадёт в пароль
 postgres/pgadmin/pgpass text eol=lf
+
+# Dockerfile и скрипты образа агента TeamCity: только LF, иначе \r ломает команды в Linux
+teamcity/agent/Dockerfile text eol=lf
+teamcity/agent/devstack-sync text eol=lf
+
+# скрипт хранения логов TeamCity запускается в Linux-контейнере: только LF
+teamcity/log-retention.sh text eol=lf

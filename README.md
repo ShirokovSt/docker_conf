@@ -1,6 +1,6 @@
 # Локальные сервисы в Docker
 
-Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark и мониторинг Spring-приложений (Prometheus + Grafana) с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus и Grafana: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
+Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг Spring-приложений (Prometheus + Grafana) и TeamCity с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus и Grafana: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
 
 ## Ссылки, порты, ключи
 
@@ -34,10 +34,14 @@
 | PostgreSQL 16 + pgAdmin | [postgres](postgres/README.md) | http://localhost:5050 | `localhost:5434` (`jdbc:postgresql://localhost:5434/postgres`) | БД `postgres` / `admin123`, pgAdmin без логина |
 | Spark 3.5.2 (Spark Connect) + File Browser | [spark](spark/README.md) | http://localhost:4040 (Spark UI), http://localhost:8090 (файлы) | `sc://localhost:15002`, файлы — `/data` (папка `spark\data`) | без логина |
 | Мониторинг: Prometheus + Grafana | [monitoring](monitoring/README.md) | http://localhost:3000 (Grafana), http://localhost:9090 (Prometheus) | сам читает `/actuator/prometheus` Spring-приложений на порту **8199** (другие порты — в `monitoring\prometheus\targets.yml`) | без логина |
+| TeamCity 2026.1.1 + БД + агенты | [teamcity](teamcity/README.md) | http://localhost:8111 | Remote Run из IDEA — плагин TeamCity, сервер `http://localhost:8111` | `admin` / `admin123` |
+| TeamCity: графики агентов (Beszel) и просмотр БД (Adminer) | [teamcity](teamcity/README.md#графики-агентов-beszel) | http://localhost:8091 (Beszel), http://localhost:8082/?pgsql=teamcity-db (Adminer) | БД TeamCity — `teamcity-db:5432`, база `teamcity` | Beszel `admin@example.com` / `admin123`, БД `teamcity` / `admin123` |
 
 Spark работает без Hadoop-кластера (HDFS/YARN не нужны): файлы лежат в папке `spark\data`, работать с ними удобно через File Browser — подробнее в [spark/README.md](spark/README.md).
 
 PostgreSQL доступен на порту **5434**.
+
+TeamCity: агенты с JDK 8/11/17/21, Maven и Docker, сборки из git (Bitbucket и др.), локального git-репозитория или локальной папки. По умолчанию работает один агент, ещё два включаются в `.env`. Как создавать сборки и где что хранится — [teamcity/README.md](teamcity/README.md). Логи и артефакты хранятся только у 3 последних билдов каждой конфигурации (число меняется в `menu.bat` → 10 «Агенты CI/CD» → 13 или `teamcity\log-retention.bat`).
 
 ## Запуск
 
@@ -49,17 +53,19 @@ PostgreSQL доступен на порту **5434**.
 | `stop-all.bat` | останавливает всё |
 | `start-s3.bat` / `stop-s3.bat` | только S3-хранилища |
 | `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг (вместе с UI) |
+| `start-cicd.bat` / `stop-cicd.bat` | только CI/CD: TeamCity, его БД, агенты, графики агентов (Beszel), просмотр БД (Adminer) |
+| `teamcity\start.bat` / `teamcity\stop.bat` | то же, из папки `teamcity` |
 | `status.bat` | статус контейнеров + ссылки |
-| `menu.bat` | меню: всё / группа / один сервис (старт, стоп, рестарт, логи), открыть UI в браузере |
+| `menu.bat` | меню: всё / группа / один сервис (старт, стоп, рестарт, логи), агенты TeamCity (добавить, запустить, удалить), открыть UI в браузере |
 | `aws-profiles.bat` | один раз создаёт профили AWS CLI под каждое хранилище |
 | `postgres\backup.bat` | бэкап всех баз PostgreSQL в `postgres\backup\` |
 | `<папка>\start.bat`, `stop.bat`, `logs.bat` | то же для одного сервиса (`logs.bat` — логи в реальном времени, выход Ctrl+C). У kafka и elasticsearch `start`/`stop` сразу работают и с UI. |
 
 Нужен запущенный Docker Desktop. Автозапуска нет: после перезагрузки ПК контейнеры запускаются только bat-файлом.
 
-Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`. Это служебные файлы, запускать их не нужно.
+Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`, часовой пояс ПК для контейнеров TeamCity определяет `_tz.bat`, сеть Docker со свободной подсетью создаёт `_net.bat` (с `_net.ps1`). Это служебные файлы, запускать их не нужно.
 
-**Память.** Всё вместе занимает около 7 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, остальное меньше. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
+**Память.** Всё вместе занимает около 7 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, TeamCity ~2.5 ГБ (сервер ~1.8 ГБ, агент ~0.7 ГБ в простое, каждый следующий агент — ещё столько же и больше во время сборки), Beszel + Adminer ~40 МБ, остальное меньше. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
 
 То же из консоли (в этой папке):
 
@@ -97,6 +103,26 @@ docker rm -f <ID из предыдущей команды>
 - имена контейнеров теперь совпадают с сервисами: `minio`, `rustfs`, `zenko`, `s3proxy`, `seaweedfs`;
 - у s3proxy порт **9005** (в старой инструкции по ошибке был указан 9004 — это порт zenko).
 
+## Сеть
+
+Все контейнеры — в сети Docker `devstack_default`. Её подсеть подбирается автоматически: при первом запуске любой bat-файл запуска (`start-all`, `start-s3`, `start-services`, `menu`, `<папка>\start.bat`) вызывает служебный `_net.bat`, тот выбирает подсеть `/24`, которая **не пересекается ни с маршрутами этого ПК** (VPN, WSL и другие подключённые сети), **ни с другими сетями Docker**, и создаёт сеть. Дальше сеть просто переиспользуется — подсеть больше не меняется, а compose подключается к готовой сети (`external`). На другом ПК подсеть подберётся под его сети.
+
+Зачем: сам Docker берёт подсети из `172.17–172.31`, а в тех же диапазонах бывают сети, к которым подключён ПК (VPN, локальная сеть). Если подсеть сети Docker с такой сетью совпадает, контейнеры (в том числе сборки TeamCity) до её серверов не достают. От подсети ничего не зависит в настройках сервисов: друг к другу они обращаются по именам, снаружи — через `localhost`.
+
+- Первый запуск лучше делать при подключённом VPN — тогда при подборе учитываются и его сети.
+- Подобрать подсеть заново (например, подключилась новая сеть или VPN): `stop-all.bat`, затем `docker compose down` и `docker network rm devstack_default`, затем `start-all.bat`. Контейнеры пересоздаются, данные в папках `data` и томах остаются.
+- `docker compose up` вручную, без bat-файлов, работает, если сеть уже создана; на чистом ПК — сначала `start-all.bat` (или `_net.bat`).
+
+Проверить в PowerShell, какие подсети заняты сетями Docker:
+
+```powershell
+docker network ls -q | ForEach-Object { docker network inspect $_ --format "{{.Name}} {{range .IPAM.Config}}{{.Subnet}}{{end}}" }
+```
+
+Сеть Docker, которая пересекается с чужой подсетью, отрезает её от **всех** контейнеров ПК, даже из других сетей. Частая причина — пустые сети, которые оставляют тесты на Testcontainers; удаляются `docker network prune`.
+
+Файл `.env` рядом с `docker-compose.yml` не обязателен: у всех переменных есть значения по умолчанию. Он нужен, только чтобы что-то переопределить на этом ПК; переменные TeamCity — в [teamcity/README.md](teamcity/README.md).
+
 ## Работа с бакетами через AWS CLI
 
 Один раз запустить `aws-profiles.bat` (нужен AWS CLI v2.13+). Он создаёт профили `minio`, `rustfs`, `zenko`, `s3proxy`, `seaweedfs` с нужными ключами и endpoint, default-профиль не трогает. Дальше в командах достаточно `--profile <сервис>`:
@@ -129,3 +155,4 @@ docker rm -f <ID из предыдущей команды>
 - Elasticsearch или Kafka падают с кодом 137 — не хватает памяти Docker Desktop (см. «Память» выше).
 - Порт занят: `netstat -ano | findstr :9000` → найти PID и процесс в диспетчере задач (часто это старый контейнер из `docker run`, см. выше).
 - Проверить, что compose-файл корректен: `docker compose config`.
+- Из контейнера не открывается нужный сервер — возможно, пересечение подсетей, см. «Сеть».

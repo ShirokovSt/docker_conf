@@ -15,3 +15,19 @@ spark/ivy/
 # Свои jar для Spark (classpath сервера) - локальные, в репозиторий не попадают
 spark/jars/*
 !spark/jars/README.md
+
+# Локальные заметки, IDE
+teamcity/README.local.md
+.idea/
+
+# TeamCity: логи сервера, бэкапы
+teamcity/logs/
+teamcity/backup/
+teamcity/*.dump
+# Свои сертификаты для образа агента - локальные
+teamcity/agent/certs/*
+!teamcity/agent/certs/README.md
+
+# Локальные настройки compose (подсеть, TeamCity) и пример к ним - только на этом ПК
+/.env
+/.env.example
