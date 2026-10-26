@@ -121,13 +121,14 @@ if "%n%"=="10" start "" http://localhost:8090
 if "%n%"=="11" start "" http://localhost:3000
 if "%n%"=="12" start "" http://localhost:9090/targets
 if "%n%"=="13" start "" http://localhost:8095/swagger-ui.html
-if "%n%"=="14" start "" http://localhost:8091
-if "%n%"=="15" start "" http://localhost:8082/?pgsql=teamcity-db
-if "%n%"=="16" goto open_all
+if "%n%"=="14" start "" http://localhost:8111
+if "%n%"=="15" start "" http://localhost:8091
+if "%n%"=="16" start "" http://localhost:8082/?pgsql=teamcity-db
+if "%n%"=="17" goto open_all
 goto menu
 
 :open_all
-for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090 3000 9090 8111 8091) do start "" http://localhost:%%u
+for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090 3000 9090 8111 8091 8082) do start "" http://localhost:%%u
 start "" http://localhost:8161/admin
 start "" http://localhost:8095/swagger-ui.html
 goto menu
@@ -157,8 +158,8 @@ if "%n%"=="9" set "svc=s3manager"
 if "%n%"=="10" set "svc=postgres pgadmin"
 if "%n%"=="11" set "svc=spark spark-files"
 if "%n%"=="12" set "svc=prometheus grafana"
-if "%n%"=="13" set "svc=%CI_SERVICES%"
-if "%n%"=="14" set "svc=converter"
+if "%n%"=="13" set "svc=converter"
+if "%n%"=="14" set "svc=%CI_SERVICES%"
 if not defined svc goto menu
 if "%action%"=="start" if defined is_s3 set "svc=%svc% s3manager"
 
