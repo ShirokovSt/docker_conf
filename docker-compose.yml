@@ -1,5 +1,5 @@
 # Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark,
-# мониторинг (Prometheus + Grafana).
+# мониторинг (Prometheus + Grafana), конвертер документов.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
@@ -365,6 +365,18 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
+    restart: "no"
+
+  # Конвертер документов (LibreOffice + JODConverter REST): API LibreOffice Online.
+  # Для приложений: POST http://localhost:8095/lool/convert-to (поля data и format).
+  # Swagger UI: http://localhost:8095/swagger-ui.html. Ничего не хранит - данных и томов нет.
+  converter:
+    image: ghcr.io/jodconverter/jodconverter-examples:rest-4.4.11-1
+    container_name: converter
+    ports:
+      - "8095:8080"
+    volumes:
+      - ./converter/application.properties:/etc/app/application.properties:ro
     restart: "no"
 
 # Именованные тома Docker (живут внутри Docker Desktop, а не в папке проекта).
