@@ -1,0 +1,138 @@
+# TeamCity 2026.1.1: сервер, его БД и 3 агента.
+# Подключается к проекту devstack через include в корневом docker-compose.yml: контейнеры - в общей группе
+# devstack, запуск - вместе со всем (start-all.bat) или отдельно (teamcity\start.bat). Пути - от папки teamcity.
+# Настройки (что видно сборкам как /host, тег образа агентов) - в docker_conf\.env, пример - .env.example.
+# База TeamCity - в pgAdmin (postgres/), метрики сервера - в Prometheus + Grafana (monitoring/).
+# Подробно - README.md.
+
+# Общие настройки агентов (teamcity-agent-1..3 ниже)
+x-teamcity-agent: &teamcity-agent
+  # Свой образ: официальный агент + JDK 8/11/17/21 и Maven (agent/Dockerfile).
+  # Не пересобирается: новый образ = новый тег (build-image.bat), тег - в .env.
+  # Если образа с этим тегом ещё нет, compose один раз соберёт его из agent/.
+  image: ${TEAMCITY_AGENT_IMAGE:-devstack/teamcity-agent:2026.1.1-3}
+  build: ./agent
+  pull_policy: missing
+  # группа root (0) - доступ к сокету Docker Desktop без запуска агента от root.
+  # Это значит, что любая сборка управляет Docker Desktop с правами root (обычно для CI с Docker и Testcontainers).
+  group_add:
+    - "0"
+  depends_on:
+    - teamcity
+  restart: "no"
+
+x-teamcity-agent-env: &teamcity-agent-env
+  SERVER_URL: http://teamcity:8111
+  # Testcontainers в сборках: контейнеры тестов - соседи агента в Docker Desktop, их порты - на host.docker.internal
+  TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+  # часовой пояс этого ПК (HOST_TZ определяет teamcity\_tz.bat при запуске из bat-файлов; иначе - HOST_TZ из .env или UTC)
+  TZ: ${HOST_TZ:-UTC}
+
+# /host - папка этого ПК для сборок, только чтение. Docker Desktop (WSL2) держит диски Windows в /run/desktop/mnt/host,
+# путь внутри сохраняется: C:\work\app = /host/c/work/app. По умолчанию - диск C; TEAMCITY_HOST_DIR в .env:
+# одна папка (d/work) или пусто - все диски.
+x-teamcity-host: &teamcity-host /run/desktop/mnt/host/${TEAMCITY_HOST_DIR-c}:/host/${TEAMCITY_HOST_DIR-c}:ro
+
+services:
+  # PostgreSQL только для TeamCity. База teamcity, пользователь teamcity / admin123 - создаёт сам образ
+  # при первом запуске. Наружу не открыт: сервер подключается к teamcity-db:5432, pgAdmin - так же.
+  teamcity-db:
+    image: postgres:16.15
+    container_name: teamcity-db
+    environment:
+      POSTGRES_DB: teamcity
+      POSTGRES_USER: teamcity
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - teamcity-db-data:/var/lib/postgresql/data
+    restart: "no"
+
+  # TeamCity server: http://localhost:8111. Data directory - именованный том teamcity-data.
+  # /host - папка этого ПК для сборок (см. x-teamcity-host выше): локальная папка или file:///host/... для git.
+  # Перед стандартным запуском образа server-init.sh качает JDBC-драйвер PostgreSQL, а после запуска сервера
+  # создаёт администратора и правило хранения логов билдов (что и зачем - в самом скрипте).
+  teamcity:
+    image: jetbrains/teamcity-server:2026.1.1
+    container_name: teamcity
+    entrypoint: ["bash", "/opt/devstack/server-init.sh"]
+    ports:
+      - "8111:8111"
+    environment:
+      TEAMCITY_SERVER_MEM_OPTS: -Xmx2g
+      # разрешает VCS root file:///host/... (по умолчанию TeamCity запрещает локальные репозитории)
+      TEAMCITY_SERVER_OPTS: -Dteamcity.git.allowFileUrl=true
+      # администратор, создаётся при запуске, если пользователей ещё нет (server-init.sh).
+      # Им же Prometheus читает метрики сервера (monitoring/prometheus/prometheus.yml).
+      TEAMCITY_ADMIN_USER: admin
+      TEAMCITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - teamcity-data:/data/teamcity_server/datadir
+      - ./logs:/opt/teamcity/logs
+      - ./server-init.sh:/opt/devstack/server-init.sh:ro
+      - ./log-retention.sh:/opt/devstack/log-retention.sh:ro
+      - *teamcity-host
+    depends_on:
+      - teamcity-db
+    restart: "no"
+
+  # Агенты: имена Agent (devstack)-N. Конфиг (авторизация), рабочая папка и кеши
+  # Gradle/Maven - в томах, переживают пересоздание контейнера.
+  # По умолчанию запускается только teamcity-agent-1. Агенты 2 и 3 добавляются из menu.bat (пункт 10
+  # "Агенты CI/CD") или docker compose up -d teamcity-agent-2. Профили agent-2 / agent-3 - только чтобы
+  # docker compose up без имён не создавал их сам; добавленных агентов start-all / start-cicd поднимают
+  # по созданным контейнерам (teamcity\_agents.bat).
+  # Бесплатная лицензия - до 3 агентов; 4-й и дальше - копия блока с новым номером и ключ лицензии.
+  teamcity-agent-1:
+    <<: *teamcity-agent
+    container_name: teamcity-agent-1
+    environment:
+      <<: *teamcity-agent-env
+      AGENT_NAME: Agent (devstack)-1
+    volumes:
+      - teamcity-agent-1-conf:/data/teamcity_agent/conf
+      - teamcity-agent-1-work:/opt/buildagent/work
+      - teamcity-agent-1-home:/home/buildagent
+      - /var/run/docker.sock:/var/run/docker.sock
+      - *teamcity-host
+
+  teamcity-agent-2:
+    <<: *teamcity-agent
+    profiles: ["agent-2"]
+    container_name: teamcity-agent-2
+    environment:
+      <<: *teamcity-agent-env
+      AGENT_NAME: Agent (devstack)-2
+    volumes:
+      - teamcity-agent-2-conf:/data/teamcity_agent/conf
+      - teamcity-agent-2-work:/opt/buildagent/work
+      - teamcity-agent-2-home:/home/buildagent
+      - /var/run/docker.sock:/var/run/docker.sock
+      - *teamcity-host
+
+  teamcity-agent-3:
+    <<: *teamcity-agent
+    profiles: ["agent-3"]
+    container_name: teamcity-agent-3
+    environment:
+      <<: *teamcity-agent-env
+      AGENT_NAME: Agent (devstack)-3
+    volumes:
+      - teamcity-agent-3-conf:/data/teamcity_agent/conf
+      - teamcity-agent-3-work:/opt/buildagent/work
+      - teamcity-agent-3-home:/home/buildagent
+      - /var/run/docker.sock:/var/run/docker.sock
+      - *teamcity-host
+
+# Именованные тома (внутри Docker Desktop). Удаляются только явно: docker compose down -v.
+volumes:
+  teamcity-db-data:
+  teamcity-data:
+  teamcity-agent-1-conf:
+  teamcity-agent-1-work:
+  teamcity-agent-1-home:
+  teamcity-agent-2-conf:
+  teamcity-agent-2-work:
+  teamcity-agent-2-home:
+  teamcity-agent-3-conf:
+  teamcity-agent-3-work:
+  teamcity-agent-3-home:

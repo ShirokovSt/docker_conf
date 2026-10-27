@@ -1,10 +1,14 @@
 # Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark,
-# мониторинг (Prometheus + Grafana), конвертер документов.
+# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов; TeamCity - через include.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
 
 name: devstack
+
+# TeamCity (сервер, его БД, агенты) описан в своей папке - teamcity/docker-compose.yml.
+include:
+  - teamcity/docker-compose.yml
 
 services:
   # MinIO: API 9000, UI 9001
@@ -252,10 +256,15 @@ services:
       - ./postgres/backup:/backup
     restart: "no"
 
-  # pgAdmin 4: http://localhost:5050 - без логина, сервер "devstack postgres" уже добавлен
+  # pgAdmin 4: http://localhost:5050 - без логина, серверы "devstack postgres" и "teamcity-db (TeamCity)" уже добавлены.
+  # Без depends_on: запускается и один, например только для базы TeamCity (menu.bat, CI/CD) - выключенный
+  # сервер просто не подключится.
   pgadmin:
     image: dpage/pgadmin4:9.18
     container_name: pgadmin
+    # Пароли к серверам (postgres/pgadmin/pgpass) - заново при каждом старте, как и список серверов:
+    # entrypoint образа копирует PGPASS_FILE только при первом создании тома pgadmin-data.
+    entrypoint: ["/bin/sh", "-c", "cp /pgadmin4/pgpass /var/lib/pgadmin/.pgpass && chmod 600 /var/lib/pgadmin/.pgpass; exec /entrypoint.sh"]
     ports:
       - "5050:80"
     environment:
@@ -274,8 +283,6 @@ services:
       - pgadmin-data:/var/lib/pgadmin
       - ./postgres/pgadmin/servers.json:/pgadmin4/servers.json:ro
       - ./postgres/pgadmin/pgpass:/pgadmin4/pgpass:ro
-    depends_on:
-      - postgres
     restart: "no"
 
   # Spark 3.5.2 - Spark Connect server: sc://localhost:15002, Spark UI http://localhost:4040
@@ -378,6 +385,15 @@ services:
     volumes:
       - ./converter/application.properties:/etc/app/application.properties:ro
     restart: "no"
+
+# Сеть проекта devstack_default создаётся не compose, а _net.bat при первом запуске из bat-файлов: он подбирает
+# подсеть, свободную на этом ПК. Сам Docker берёт подсети из 172.17-172.31, а там же бывают сети, к которым
+# подключён ПК (VPN и т.п.): при пересечении контейнеры до них не достают. Compose подключается к готовой сети
+# и её подсеть не меняет. Если сети нет (запуск docker compose up вручную до первого запуска bat) - start-all.bat.
+networks:
+  default:
+    name: devstack_default
+    external: true
 
 # Именованные тома Docker (живут внутри Docker Desktop, а не в папке проекта).
 # Удаляются только явно: docker compose down -v или docker volume rm.

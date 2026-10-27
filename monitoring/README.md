@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Grafana | http://localhost:3000 — без логина, сразу открывается дашборд «Spring Boot» |
+| Grafana | http://localhost:3000 — без логина, сразу открывается дашборд «Spring Boot»; дашборд [«TeamCity»](#teamcity) — http://localhost:3000/d/teamcity |
 | Prometheus | http://localhost:9090, список приложений и их статус — http://localhost:9090/targets |
 | Порт Spring-приложения по умолчанию | **8199** |
 | Контейнеры / сервисы | `prometheus`, `grafana` |
@@ -69,6 +69,20 @@ Spring-приложение (localhost:8199) ←── читает раз в 15
 **Совместимость.** Дашборд построен на стандартных метриках Micrometer (`jvm_*`, `process_*`, `http_server_requests_seconds_*`, `hikaricp_*`, `logback_events_total`). Их имена одинаковы в Spring Boot 2.x и 3.x, так что после обновления версии Spring дашборд продолжит работать. Если у приложения каких-то метрик нет (нет Hikari, логи не на Logback), соответствующая панель просто будет пустой.
 
 **95-й перцентиль** появится, только если в приложении включены гистограммы: `management.metrics.distribution.percentiles-histogram.http.server.requests=true`. Без этого панель пустая, а среднее и максимум работают.
+
+## TeamCity
+
+Prometheus читает и метрики сервера TeamCity из [../teamcity](../teamcity/README.md): `http://teamcity:8111/app/metrics` под администратором `admin` / `admin123` (job `teamcity` в [prometheus/prometheus.yml](prometheus/prometheus.yml)). Отдельных контейнеров для этого нет. Пока TeamCity не запущен, цель на http://localhost:9090/targets — DOWN.
+
+Дашборд **«TeamCity»** (http://localhost:3000/d/teamcity, то же — `menu.bat` → 10 «Агенты CI/CD» → 16):
+
+| Блок | Что показывает |
+|---|---|
+| Сейчас | отвечает ли сервер, сколько агентов подключено и занято, сколько сборок идёт и ждёт в очереди |
+| Сборки и агенты | очередь, идущие сборки и занятые агенты во времени; завершённые сборки (прерванные — отдельно) |
+| Сервер TeamCity | CPU процесса и всей системы, память JVM сервера, потоки |
+
+Очередь долго не пустеет, а все агенты заняты — агентов не хватает. CPU и память контейнеров агентов здесь не видны: их показывают Docker Desktop (вкладка Containers) и `docker stats`. Все метрики TeamCity с описаниями — в самом TeamCity: Administration → Diagnostics → Metrics.
 
 ## Свои метрики
 

@@ -1,0 +1,59 @@
+#!/bin/bash
+# devstack-sync <папка> - синхронизирует папку проекта с этого ПК в текущую папку сборки (рабочую папку агента).
+# Папка - путь Windows (D:\work\app) или путь в контейнере (/host/d/work/app).
+# Копируются только изменения с прошлой сборки, удалённые файлы удаляются. Результаты сборки на агенте
+# (build рядом с build.gradle, target рядом с pom.xml, .gradle, node_modules) не трогаются - Gradle и Maven
+# собирают инкрементально. Исходная папка не меняется: диски ПК подключены только на чтение.
+set -euo pipefail
+
+if [ $# -ne 1 ] || [ -z "$1" ]; then
+  echo "usage: devstack-sync <folder>   (D:\\work\\app or /host/d/work/app)" >&2
+  exit 2
+fi
+
+P="$1"
+case "$P" in
+  [A-Za-z]:*) SRC="/host/$(printf '%s' "${P:0:1}" | tr 'A-Z' 'a-z')$(printf '%s' "${P:2}" | tr '\\' '/')" ;;
+  *) SRC="$P" ;;
+esac
+SRC="${SRC%/}"
+if [ ! -d "$SRC" ]; then
+  echo "##teamcity[buildProblem description='folder not found: $P ($SRC)']"
+  exit 1
+fi
+
+# Не синхронизируем результаты сборок и служебные папки (исключённое на агенте rsync не трогает):
+# - build, если рядом build.gradle(.kts) или внутри есть tmp, classes или libs (так выглядит вывод Gradle,
+#   в том числе у модулей без своего build.gradle);
+# - target, если рядом pom.xml или внутри classes / maven-status (вывод Maven);
+# - .git, .gradle, .idea, node_modules - везде.
+# Папки build с исходниками (например, библиотеки в resources) синхронизируются.
+EXCL=$(mktemp)
+trap 'rm -f "$EXCL" gradlew.devstack-sync' EXIT
+(cd "$SRC" && find . \( -name .git -o -name .gradle -o -name .idea -o -name node_modules \) -prune -print \
+  -o -type d -name build -exec sh -c 'p=$(dirname "$1"); [ -e "$p/build.gradle" ] || [ -e "$p/build.gradle.kts" ] || [ -d "$1/tmp" ] || [ -d "$1/classes" ] || [ -d "$1/libs" ]' _ {} \; -prune -print \
+  -o -type d -name target -exec sh -c '[ -e "$(dirname "$1")/pom.xml" ] || [ -d "$1/classes" ] || [ -d "$1/maven-status" ]' _ {} \; -prune -print) \
+  | sed 's|^\.||; s|$|/|' > "$EXCL"
+# gradlew - отдельно, ниже (на агенте он с LF, иначе rsync копировал бы его каждый раз)
+echo "/gradlew" >> "$EXCL"
+
+echo "devstack-sync: $P -> $(pwd), excluded: $(($(wc -l < "$EXCL") - 1)) folders"
+set +e
+rsync -rlt --delete --exclude-from="$EXCL" --stats "$SRC/" ./ \
+  | grep -E '^(Number of (regular )?files( transferred)?|Number of deleted files|Total transferred file size)'
+rc=${PIPESTATUS[0]}
+set -e
+# 24 - файлы исчезли во время копирования (IDE пишет в папку) - не ошибка
+if [ "$rc" -ne 0 ] && [ "$rc" -ne 24 ]; then
+  echo "##teamcity[buildProblem description='devstack-sync: rsync failed with code $rc']"
+  exit "$rc"
+fi
+
+# gradlew из папки Windows бывает с CRLF - в Linux так не запустится: копия без \r, только если изменился
+if [ -f "$SRC/gradlew" ]; then
+  tr -d '\r' < "$SRC/gradlew" > gradlew.devstack-sync
+  cmp -s gradlew.devstack-sync gradlew 2>/dev/null || cp gradlew.devstack-sync gradlew
+  chmod +x gradlew
+elif [ -f gradlew ]; then
+  rm -f gradlew
+fi

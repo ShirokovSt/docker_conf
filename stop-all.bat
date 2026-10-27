@@ -9,8 +9,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Остановка всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер...
-docker compose stop
+echo Остановка всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, TeamCity...
+rem --profile "*" - вместе с добавленными агентами TeamCity (2, 3), если они есть
+docker compose --profile "*" stop
 echo.
-docker compose ps -a
+docker compose --profile "*" ps -a
 pause

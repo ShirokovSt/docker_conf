@@ -14,6 +14,18 @@ scrape_configs:
           - /etc/prometheus/conf/targets.yml
         refresh_interval: 30s   # targets.yml перечитывается сам
 
+  # Сервер TeamCity (teamcity/): агенты, очередь, сборки, JVM сервера - дашборд «TeamCity».
+  # Метрики требуют входа - учётка администратора из teamcity/docker-compose.yml.
+  # Пока TeamCity не запущен, цель просто DOWN.
+  - job_name: teamcity
+    metrics_path: /app/metrics
+    basic_auth:
+      username: admin
+      password: admin123
+    static_configs:
+      - targets:
+          - teamcity:8111
+
   # Сам Prometheus (для проверки, что всё работает)
   - job_name: prometheus
     static_configs:

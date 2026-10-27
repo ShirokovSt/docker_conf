@@ -10,6 +10,17 @@
       "SSLMode": "prefer",
       "PassFile": "/var/lib/pgadmin/.pgpass",
       "Comment": "PostgreSQL 16 из docker-compose (с хоста: localhost:5434)"
+    },
+    "2": {
+      "Name": "teamcity-db (TeamCity)",
+      "Group": "Servers",
+      "Host": "teamcity-db",
+      "Port": 5432,
+      "MaintenanceDB": "teamcity",
+      "Username": "teamcity",
+      "SSLMode": "prefer",
+      "PassFile": "/var/lib/pgadmin/.pgpass",
+      "Comment": "База TeamCity (teamcity/docker-compose.yml), наружу не открыта. Только смотреть: правки вручную могут сломать TeamCity"
     }
   }
 }

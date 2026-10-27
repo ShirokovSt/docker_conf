@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Веб-интерфейс (pgAdmin 4) | http://localhost:5050 — без логина, сервер «devstack postgres» уже добавлен и подключается без пароля |
+| Веб-интерфейс (pgAdmin 4) | http://localhost:5050 — без логина, серверы «devstack postgres» и «teamcity-db (TeamCity)» уже добавлены и подключаются без пароля |
 | Подключение с этого ПК | `localhost:5434` |
 | Подключение из других контейнеров compose | `postgres:5432` |
 | Пользователь / пароль | `postgres` / `admin123` |
@@ -39,6 +39,8 @@
 | Пользователи и права | ПКМ по **Login/Group Roles** → Create; права — в Properties объекта, вкладка Security |
 
 Список серверов pgAdmin берёт из [pgadmin/servers.json](pgadmin/servers.json) при каждом старте, пароль — из [pgadmin/pgpass](pgadmin/pgpass). Если меняете пароль `postgres`, поправьте его в `docker-compose.yml` и в `pgpass`.
+
+**База TeamCity.** Второй сервер в списке — **teamcity-db (TeamCity)**: база `teamcity` из [teamcity](../teamcity/README.md), пользователь `teamcity`. Подключается, когда запущен TeamCity. pgAdmin не зависит от основного PostgreSQL и может работать один: `docker compose up -d pgadmin` или `menu.bat` → 10 «Агенты CI/CD» → «База TeamCity». Данные TeamCity лучше только смотреть: ручные правки могут сломать сервер.
 
 ## Консоль psql
 
