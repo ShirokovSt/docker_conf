@@ -23,7 +23,7 @@ x-teamcity-agent-env: &teamcity-agent-env
   SERVER_URL: http://teamcity:8111
   # Testcontainers в сборках: контейнеры тестов - соседи агента в Docker Desktop, их порты - на host.docker.internal
   TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
-  # часовой пояс этого ПК (HOST_TZ определяет _tz.bat при запуске из bat-файлов; иначе - HOST_TZ из .env или UTC)
+  # часовой пояс этого ПК (HOST_TZ определяет teamcity\_tz.bat при запуске из bat-файлов; иначе - HOST_TZ из .env или UTC)
   TZ: ${HOST_TZ:-UTC}
 
 services:

@@ -11,7 +11,7 @@ rem сеть devstack_default с подсетью, свободной на эт�
 call "%~dp0..\_net.bat" || (pause & exit /b 1)
 
 call "%~dp0..\_groups.bat"
-call "%~dp0..\_tz.bat"
+call "%~dp0_tz.bat"
 echo Запуск TeamCity:%CI_SERVICES%
 docker compose -f "%~dp0..\docker-compose.yml" up -d %CI_SERVICES%
 rem агент Beszel (графики контейнеров) подключается к hub один раз

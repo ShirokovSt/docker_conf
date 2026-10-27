@@ -83,7 +83,7 @@ Docker Desktop (WSL2) сам держит все диски Windows в `/run/des
 
 Docker в сборках — это Docker Desktop этого ПК: контейнеры из сборок и Testcontainers появляются рядом с остальными. Для Testcontainers уже задано `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal`. Ограничение: в `docker run -v` / `docker compose` из сборки пути bind-монтирования считаются на стороне Docker Desktop, а не агента, поэтому монтировать рабочую папку сборки так не получится — используйте `docker cp` или тома.
 
-**Часовой пояс агентов — как у этого ПК.** `start-all.bat`, `menu.bat` и `teamcity\start.bat` перед запуском определяют пояс Windows (служебный `_tz.bat`, например `Europe/Moscow`) и передают его агентам как `TZ`: время в сборках и тестах совпадает с часами ПК, на другом компьютере будет его пояс. Если запускать `docker compose` вручную, без bat-файлов, агенты получат `HOST_TZ` из `.env` или UTC. Сменился пояс на ПК — `teamcity\stop.bat` + `teamcity\start.bat`.
+**Часовой пояс агентов — как у этого ПК.** `start-all.bat`, `start-cicd.bat`, `menu.bat` и `teamcity\start.bat` перед запуском определяют пояс Windows (служебный `teamcity\_tz.bat`, например `Europe/Moscow`) и передают его агентам как `TZ`: время в сборках и тестах совпадает с часами ПК, на другом компьютере будет его пояс. Если запускать `docker compose` вручную, без bat-файлов, агенты получат `HOST_TZ` из `.env` или UTC. Сменился пояс на ПК — `teamcity\stop.bat` + `teamcity\start.bat`.
 
 ### Добавить агента
 
