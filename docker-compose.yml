@@ -1,5 +1,5 @@
 # Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark,
-# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов; TeamCity - через include.
+# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов, тестовая почта (Mailpit); TeamCity - через include.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
@@ -384,6 +384,26 @@ services:
       - "8095:8080"
     volumes:
       - ./converter/application.properties:/etc/app/application.properties:ro
+    restart: "no"
+
+  # Mailpit: тестовая почта. Приложения шлют письма на SMTP localhost:1025 (из контейнеров - mailpit:1025),
+  # письма никуда не уходят и видны в веб-интерфейсе http://localhost:8025 (без логина).
+  mailpit:
+    image: axllent/mailpit:v1.31.5
+    container_name: mailpit
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # веб-интерфейс и API
+    environment:
+      MP_DATABASE: /data/mailpit.db     # письма сохраняются между перезапусками
+      # Лимиты хранения: старые письма удаляются сами. Поменять - правка здесь и mailpit\start.bat
+      # (не "Перезапустить": только up пересоздаёт контейнер с новыми значениями)
+      MP_MAX_MESSAGES: "1000"           # не больше 1000 писем
+      MP_MAX_AGE: 7d                    # и не старше 7 дней (формат: 36h или 14d)
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"      # любой логин/пароль SMTP принимается
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"  # ...и без TLS
+    volumes:
+      - ./mailpit/data:/data
     restart: "no"
 
 # Сеть проекта devstack_default создаётся не compose, а _net.bat при первом запуске из bat-файлов: он подбирает
