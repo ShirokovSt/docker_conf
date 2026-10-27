@@ -50,7 +50,7 @@ RUN set -e; \
     printf '\n# devstack: Maven, teamcity.tool.*\nteamcity.tool.maven.3.6.3=/opt/maven/%s\nteamcity.tool.maven3_9=/opt/maven/%s\n' \
       ${MAVEN_36_VERSION} ${MAVEN_39_VERSION} >> /opt/buildagent/conf/buildAgent.dist.properties
 
-# Корпоративные корневые сертификаты (необязательно): *.crt из папки certs - в системное хранилище
+# Корневые сертификаты (необязательно): *.crt из папки certs - в системное хранилище
 # и в cacerts всех JDK. Пустая папка - шаг ничего не делает.
 COPY certs/ /tmp/certs/
 RUN set -e; \

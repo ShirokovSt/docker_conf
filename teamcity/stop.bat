@@ -9,8 +9,8 @@ if errorlevel 1 (
 )
 
 call "%~dp0..\_groups.bat"
-echo Остановка TeamCity:%CI_SERVICES%
-docker compose -f "%~dp0..\docker-compose.yml" stop %CI_SERVICES%
+echo Остановка TeamCity: %CI_SERVICES% %CI_AGENTS%
+docker compose -f "%~dp0..\docker-compose.yml" stop %CI_SERVICES% %CI_AGENTS%
 echo.
-docker compose -f "%~dp0..\docker-compose.yml" ps -a %CI_SERVICES%
+docker compose -f "%~dp0..\docker-compose.yml" ps -a %CI_SERVICES% %CI_AGENTS%
 pause

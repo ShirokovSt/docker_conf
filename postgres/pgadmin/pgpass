@@ -1,1 +1,2 @@
 postgres:5432:*:postgres:admin123
+teamcity-db:5432:*:teamcity:admin123

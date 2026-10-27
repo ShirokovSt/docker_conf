@@ -13,9 +13,8 @@ rem сеть devstack_default с подсетью, свободной на эт�
 call "%~dp0_net.bat" || (pause & exit /b 1)
 
 :menu
-rem Группы читаются при каждом показе меню: правки _groups.bat и добавленные агенты TeamCity
-rem видны без перезапуска меню. cmd читает bat с диска по ходу выполнения, а переменные
-rem окна живут, пока оно открыто, - разово при запуске они бы устарели.
+rem Группы читаются при каждом показе меню: правки _groups.bat видны без перезапуска меню.
+rem _groups.bat только задаёт переменные, Docker не вызывает - меню перерисовывается сразу.
 call "%~dp0_groups.bat"
 cls
 echo ===================== Локальные сервисы =====================
@@ -52,8 +51,8 @@ if "%choice%"=="4"  set "group=%S3_SERVICES%"  & set "action=start" & goto group
 if "%choice%"=="5"  set "group=%S3_SERVICES%"  & set "action=stop"  & goto group
 if "%choice%"=="6"  set "group=%APP_SERVICES%" & set "action=start" & goto group
 if "%choice%"=="7"  set "group=%APP_SERVICES%" & set "action=stop"  & goto group
-if "%choice%"=="8"  set "group=%CI_SERVICES%"  & set "action=start" & goto group
-if "%choice%"=="9"  set "group=%CI_SERVICES%"  & set "action=stop"  & goto group
+if "%choice%"=="8"  goto ci_start
+if "%choice%"=="9"  set "group=%CI_SERVICES% %CI_AGENTS%" & set "action=stop" & goto group
 if "%choice%"=="10" goto cicd
 if "%choice%"=="11" set "action=start"   & goto pick
 if "%choice%"=="12" set "action=stop"    & goto pick
@@ -66,22 +65,29 @@ goto menu
 
 :start_all
 docker compose up -d
+call "%~dp0teamcity\_agents.bat"
 if defined CI_EXTRA docker compose up -d%CI_EXTRA%
-call "%~dp0teamcity\_beszel-setup.bat"
-docker compose ps
+docker compose --profile "*" ps
 pause
 goto menu
 
 :stop_all
-if defined CI_EXTRA docker compose stop%CI_EXTRA%
-docker compose stop
+rem --profile "*" - вместе с добавленными агентами TeamCity
+docker compose --profile "*" stop
 pause
 goto menu
 
 :status
-docker compose ps -a
+docker compose --profile "*" ps -a
 pause
 goto menu
+
+:ci_start
+rem CI/CD вместе с добавленными агентами (2, 3), если есть
+call "%~dp0teamcity\_agents.bat"
+set "group=%CI_SERVICES%%CI_EXTRA%"
+set "action=start"
+goto group
 
 :links
 call "%~dp0_links.bat"
@@ -90,8 +96,6 @@ goto menu
 
 :group
 if "%action%"=="start" docker compose up -d %group%
-rem в группе есть Beszel - один раз подключаем его агента к hub
-if "%action%"=="start" if not "%group:beszel=%"=="%group%" call "%~dp0teamcity\_beszel-setup.bat"
 if "%action%"=="stop"  docker compose stop %group%
 docker compose ps -a %group%
 pause
@@ -101,9 +105,8 @@ goto menu
 echo.
 echo   1. S3 Manager - все хранилища   2. minio   3. rustfs   4. seaweedfs - Filer и Master
 echo   5. Kafka UI   6. Kibana   7. ActiveMQ   8. pgAdmin   9. Spark UI   10. Файлы Spark
-echo   11. Grafana   12. Prometheus   13. Конвертер - Swagger
-echo   14. TeamCity   15. Beszel - графики агентов   16. Adminer - база TeamCity
-echo   17. все сразу
+echo   11. Grafana   12. Prometheus   13. Конвертер - Swagger   14. TeamCity
+echo   15. все сразу
 echo   Enter - назад
 echo.
 set "n="
@@ -122,13 +125,11 @@ if "%n%"=="11" start "" http://localhost:3000
 if "%n%"=="12" start "" http://localhost:9090/targets
 if "%n%"=="13" start "" http://localhost:8095/swagger-ui.html
 if "%n%"=="14" start "" http://localhost:8111
-if "%n%"=="15" start "" http://localhost:8091
-if "%n%"=="16" start "" http://localhost:8082/?pgsql=teamcity-db
-if "%n%"=="17" goto open_all
+if "%n%"=="15" goto open_all
 goto menu
 
 :open_all
-for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090 3000 9090 8111 8091 8082) do start "" http://localhost:%%u
+for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090 3000 9090 8111) do start "" http://localhost:%%u
 start "" http://localhost:8161/admin
 start "" http://localhost:8095/swagger-ui.html
 goto menu
@@ -159,9 +160,12 @@ if "%n%"=="10" set "svc=postgres pgadmin"
 if "%n%"=="11" set "svc=spark spark-files"
 if "%n%"=="12" set "svc=prometheus grafana"
 if "%n%"=="13" set "svc=converter"
-if "%n%"=="14" set "svc=%CI_SERVICES%"
+if "%n%"=="14" set "svc=%CI_SERVICES% %CI_AGENTS%"
 if not defined svc goto menu
 if "%action%"=="start" if defined is_s3 set "svc=%svc% s3manager"
+rem CI/CD: запускаются только созданные агенты 2, 3 (остальные действия - со всеми)
+if "%n%"=="14" if "%action%"=="start" goto pick_ci_start
+:pick_run
 
 if "%action%"=="start"   docker compose up -d %svc%
 if "%action%"=="stop"    docker compose stop %svc%
@@ -169,6 +173,11 @@ if "%action%"=="restart" docker compose restart %svc%
 if "%action%"=="logs"    docker compose logs --tail 200 %svc%
 pause
 goto menu
+
+:pick_ci_start
+call "%~dp0teamcity\_agents.bat"
+set "svc=%CI_SERVICES%%CI_EXTRA%"
+goto pick_run
 
 :cicd
 call "%~dp0_groups.bat"
@@ -178,7 +187,7 @@ echo.
 call :tc_line
 call :log_line
 echo.
-echo   1. Запустить TeamCity - сервер, БД, агенты, графики и Adminer
+echo   1. Запустить TeamCity - сервер, БД, агенты
 echo   2. Остановить TeamCity
 echo   3. Перезапустить сервер TeamCity
 echo   4. Логи сервера - последние 200 строк
@@ -194,7 +203,7 @@ echo  11. Удалить агента - 2 или 3
 echo  12. Открыть агентов в TeamCity
 echo  13. Хранение логов билдов - для скольких последних билдов хранить
 echo  14. Очистить старые логи сейчас
-echo  15. Графики агентов - Beszel      16. База TeamCity - Adminer
+echo  15. База TeamCity - pgAdmin      16. Метрики TeamCity - Grafana
 echo.
 echo   Новый агент один раз авторизуется в TeamCity: Agents - Unauthorized - Authorize.
 echo   Enter - назад
@@ -223,8 +232,8 @@ if "%a%"=="14" (
     pause
     goto cicd
 )
-if "%a%"=="15" start "" http://localhost:8091 & goto cicd
-if "%a%"=="16" start "" http://localhost:8082/?pgsql=teamcity-db & goto cicd
+if "%a%"=="15" goto cicd_db
+if "%a%"=="16" goto cicd_metrics
 set "act="
 if "%a%"=="7"  set "act=start"
 if "%a%"=="8"  set "act=stop"
@@ -243,16 +252,32 @@ if "%act%"=="logs"    docker compose logs --tail 100 teamcity-agent-%n%
 pause
 goto cicd
 :cicd_start
-docker compose up -d %CI_SERVICES%
-call "%~dp0teamcity\_beszel-setup.bat"
+call "%~dp0teamcity\_agents.bat"
+docker compose up -d %CI_SERVICES%%CI_EXTRA%
 echo.
-echo   TeamCity - http://localhost:8111, готов через 1-2 минуты.
-echo   Графики агентов - http://localhost:8091, база TeamCity - http://localhost:8082
+echo   TeamCity - http://localhost:8111 (admin / admin123), готов через 1-2 минуты.
+echo   База TeamCity - пункт 15 (pgAdmin), метрики - пункт 16 (Grafana).
 pause
 goto cicd
 
 :cicd_stop
-docker compose stop %CI_SERVICES%
+docker compose stop %CI_SERVICES% %CI_AGENTS%
+pause
+goto cicd
+
+:cicd_db
+rem pgAdmin из группы сервисов, сервер teamcity-db в нём уже добавлен; основной postgres не нужен
+docker compose up -d pgadmin
+echo   pgAdmin - http://localhost:5050, слева Servers - teamcity-db (TeamCity).
+start "" http://localhost:5050
+pause
+goto cicd
+
+:cicd_metrics
+rem метрики сервера TeamCity читает Prometheus из группы сервисов (monitoring), показывает Grafana
+docker compose up -d prometheus grafana
+echo   Grafana - дашборд TeamCity. Первые точки появятся через 15-30 секунд.
+start "" http://localhost:3000/d/teamcity
 pause
 goto cicd
 

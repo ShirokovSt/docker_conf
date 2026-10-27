@@ -10,8 +10,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Остановка CI/CD: %CI_SERVICES%
-docker compose stop %CI_SERVICES%
+echo Остановка CI/CD: %CI_SERVICES% %CI_AGENTS%
+docker compose stop %CI_SERVICES% %CI_AGENTS%
 echo.
-docker compose ps -a %CI_SERVICES%
+docker compose ps -a %CI_SERVICES% %CI_AGENTS%
 pause

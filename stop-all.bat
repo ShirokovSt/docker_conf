@@ -10,10 +10,8 @@ if errorlevel 1 (
 )
 
 echo Остановка всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, TeamCity...
-rem добавленные агенты TeamCity (2, 3) - если есть
-call "%~dp0_groups.bat"
-if defined CI_EXTRA docker compose stop%CI_EXTRA%
-docker compose stop
+rem --profile "*" - вместе с добавленными агентами TeamCity (2, 3), если они есть
+docker compose --profile "*" stop
 echo.
-docker compose ps -a
+docker compose --profile "*" ps -a
 pause

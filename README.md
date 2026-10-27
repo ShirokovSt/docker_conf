@@ -1,6 +1,6 @@
 # Локальные сервисы в Docker
 
-Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг Spring-приложений (Prometheus + Grafana), конвертер документов и TeamCity с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus и Grafana: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
+Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг Spring-приложений (Prometheus + Grafana), конвертер документов и CI/CD (TeamCity) с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`, TeamCity подключён из своей папки). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus и Grafana: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
 
 ## Ссылки, порты, ключи
 
@@ -33,16 +33,20 @@
 | ActiveMQ Classic | [activemq](activemq/README.md) | http://localhost:8161/admin | `tcp://localhost:61616` (AMQP 5672, STOMP 61613, MQTT 1883, WS 61614) | консоль `admin` / `admin123`, клиенты без логина |
 | PostgreSQL 16 + pgAdmin | [postgres](postgres/README.md) | http://localhost:5050 | `localhost:5434` (`jdbc:postgresql://localhost:5434/postgres`) | БД `postgres` / `admin123`, pgAdmin без логина |
 | Spark 3.5.2 (Spark Connect) + File Browser | [spark](spark/README.md) | http://localhost:4040 (Spark UI), http://localhost:8090 (файлы) | `sc://localhost:15002`, файлы — `/data` (папка `spark\data`) | без логина |
-| Мониторинг: Prometheus + Grafana | [monitoring](monitoring/README.md) | http://localhost:3000 (Grafana), http://localhost:9090 (Prometheus) | сам читает `/actuator/prometheus` Spring-приложений на порту **8199** (другие порты — в `monitoring\prometheus\targets.yml`) | без логина |
+| Мониторинг: Prometheus + Grafana | [monitoring](monitoring/README.md) | http://localhost:3000 (Grafana), http://localhost:9090 (Prometheus) | сам читает `/actuator/prometheus` Spring-приложений на порту **8199** (другие порты — в `monitoring\prometheus\targets.yml`) и метрики TeamCity | без логина |
 | Конвертер документов (LibreOffice + JODConverter) | [converter](converter/README.md) | http://localhost:8095/swagger-ui.html (Swagger UI) | `POST http://localhost:8095/lool/convert-to` (API LibreOffice Online: поля `data` и `format`) | без логина |
-| TeamCity 2026.1.1 + БД + агенты | [teamcity](teamcity/README.md) | http://localhost:8111 | Remote Run из IDEA — плагин TeamCity, сервер `http://localhost:8111` | `admin` / `admin123` |
-| TeamCity: графики агентов (Beszel) и просмотр БД (Adminer) | [teamcity](teamcity/README.md#графики-агентов-beszel) | http://localhost:8091 (Beszel), http://localhost:8082/?pgsql=teamcity-db (Adminer) | БД TeamCity — `teamcity-db:5432`, база `teamcity` | Beszel `admin@example.com` / `admin123`, БД `teamcity` / `admin123` |
 
 Spark работает без Hadoop-кластера (HDFS/YARN не нужны): файлы лежат в папке `spark\data`, работать с ними удобно через File Browser — подробнее в [spark/README.md](spark/README.md).
 
 PostgreSQL доступен на порту **5434**.
 
-TeamCity: агенты с JDK 8/11/17/21, Maven и Docker, сборки из git (Bitbucket и др.), локального git-репозитория или локальной папки. По умолчанию работает один агент, ещё два включаются в `.env`. Как создавать сборки и где что хранится — [teamcity/README.md](teamcity/README.md). Логи и артефакты хранятся только у 3 последних билдов каждой конфигурации (число меняется в `menu.bat` → 10 «Агенты CI/CD» → 13 или `teamcity\log-retention.bat`).
+### CI/CD
+
+| Сервис | Папка | Веб-интерфейс | Подключение | Вход |
+|---|---|---|---|---|
+| TeamCity 2026.1.1 + БД + агенты | [teamcity](teamcity/README.md) | http://localhost:8111 | Remote Run из IDEA — плагин TeamCity, сервер `http://localhost:8111` | `admin` / `admin123` |
+
+Агенты с JDK 8/11/17/21, Maven и Docker; сборки из git (Bitbucket и др.), локального git-репозитория или папки на диске C (другие папки — `TEAMCITY_HOST_DIR` в `.env`). По умолчанию работает один агент, ещё два добавляются в `menu.bat` → 10 «Агенты CI/CD». Логи и артефакты хранятся у 3 последних билдов каждой конфигурации, очистка — после каждого билда (число меняется там же или `teamcity\log-retention.bat`). Отдельных контейнеров для просмотра не нужно: база TeamCity — в pgAdmin (сервер `teamcity-db`), метрики — дашборд «TeamCity» в Grafana. Подробно — [teamcity/README.md](teamcity/README.md).
 
 ## Запуск
 
@@ -54,7 +58,7 @@ TeamCity: агенты с JDK 8/11/17/21, Maven и Docker, сборки из git
 | `stop-all.bat` | останавливает всё |
 | `start-s3.bat` / `stop-s3.bat` | только S3-хранилища |
 | `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер (вместе с UI) |
-| `start-cicd.bat` / `stop-cicd.bat` | только CI/CD: TeamCity, его БД, агенты, графики агентов (Beszel), просмотр БД (Adminer) |
+| `start-cicd.bat` / `stop-cicd.bat` | только CI/CD: TeamCity, его БД, агенты |
 | `teamcity\start.bat` / `teamcity\stop.bat` | то же, из папки `teamcity` |
 | `status.bat` | статус контейнеров + ссылки |
 | `menu.bat` | меню: всё / группа / один сервис (старт, стоп, рестарт, логи), агенты TeamCity (добавить, запустить, удалить), открыть UI в браузере |
@@ -64,9 +68,9 @@ TeamCity: агенты с JDK 8/11/17/21, Maven и Docker, сборки из git
 
 Нужен запущенный Docker Desktop. Автозапуска нет: после перезагрузки ПК контейнеры запускаются только bat-файлом.
 
-Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`, часовой пояс ПК для контейнеров TeamCity определяет `teamcity\_tz.bat`, сеть Docker со свободной подсетью создаёт `_net.bat` (с `_net.ps1`). Это служебные файлы, запускать их не нужно.
+Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`, часовой пояс ПК для контейнеров TeamCity определяет `teamcity\_tz.bat`, добавленных агентов TeamCity находит `teamcity\_agents.bat`, сеть Docker со свободной подсетью создаёт `_net.bat` (с `_net.ps1`). Это служебные файлы, запускать их не нужно.
 
-**Память.** Всё вместе занимает около 7 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, конвертер ~0.5 ГБ, TeamCity ~2.5 ГБ (сервер ~1.8 ГБ, агент ~0.7 ГБ в простое, каждый следующий агент — ещё столько же и больше во время сборки), Beszel + Adminer ~40 МБ, остальное меньше. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
+**Память.** Всё вместе занимает около 10 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, конвертер ~0.5 ГБ, TeamCity ~2.5 ГБ (сервер ~1.8 ГБ, агент ~0.7 ГБ в простое, каждый следующий агент — ещё столько же и больше во время сборки), остальное меньше. Без TeamCity — около 7 ГБ: `start-s3.bat` + `start-services.bat`. При первом запуске TeamCity образ агента собирается несколько минут. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
 
 То же из консоли (в этой папке):
 
@@ -122,7 +126,7 @@ docker network ls -q | ForEach-Object { docker network inspect $_ --format "{{.N
 
 Сеть Docker, которая пересекается с чужой подсетью, отрезает её от **всех** контейнеров ПК, даже из других сетей. Частая причина — пустые сети, которые оставляют тесты на Testcontainers; удаляются `docker network prune`.
 
-Файл `.env` рядом с `docker-compose.yml` не обязателен: у всех переменных есть значения по умолчанию. Он нужен, только чтобы что-то переопределить на этом ПК; переменные TeamCity — в [teamcity/README.md](teamcity/README.md).
+Файл `.env` рядом с `docker-compose.yml` не обязателен: у всех переменных есть значения по умолчанию. Он нужен, только чтобы что-то переопределить на этом ПК: скопируйте нужные строки из [.env.example](.env.example) (там все переменные с пояснениями). Переменные TeamCity — в [teamcity/README.md](teamcity/README.md).
 
 ## Работа с бакетами через AWS CLI
 

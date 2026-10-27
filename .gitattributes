@@ -9,5 +9,5 @@ postgres/pgadmin/pgpass text eol=lf
 teamcity/agent/Dockerfile text eol=lf
 teamcity/agent/devstack-sync text eol=lf
 
-# скрипт хранения логов TeamCity запускается в Linux-контейнере: только LF
-teamcity/log-retention.sh text eol=lf
+# скрипты сервера TeamCity (инициализация, хранение логов) запускаются в Linux-контейнере: только LF
+teamcity/*.sh text eol=lf
