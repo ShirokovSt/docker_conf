@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cassandra UI</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #6b7385; --line: #e2e5eb;
+    --accent: #1f6feb; --accent-weak: #e8f0fe; --danger: #c62828; --ok: #2e7d32; --code: #f1f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1b1f26; --text: #e4e7ec; --muted: #8b93a5; --line: #2b313b;
+      --accent: #4c8dff; --accent-weak: #1e2a40; --danger: #ef5350; --ok: #66bb6a; --code: #222831;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; }
+  header .info { color: var(--muted); font-size: 12px; }
+  header nav { margin-left: auto; display: flex; gap: 8px; }
+  .layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 49px); }
+  aside { background: var(--panel); border-right: 1px solid var(--line); padding: 12px; overflow: auto; }
+  main { padding: 16px; overflow: auto; min-width: 0; }
+  button, .btn { font: inherit; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--danger); }
+  button.small { padding: 2px 7px; font-size: 12px; }
+  input, textarea, select { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); }
+  textarea { width: 100%; font-family: ui-monospace, Consolas, monospace; }
+  .ks { margin-bottom: 10px; }
+  .ks-head { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .ks-head .repl { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .ks-head .acts { margin-left: auto; display: flex; gap: 4px; }
+  .tbl { display: flex; align-items: center; gap: 6px; padding: 3px 6px 3px 18px; border-radius: 6px; cursor: pointer; }
+  .tbl:hover { background: var(--accent-weak); }
+  .tbl.active { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
+  .badge { font-size: 11px; padding: 0 6px; border-radius: 10px; background: var(--accent-weak); color: var(--accent); }
+  .muted { color: var(--muted); }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 12px 0; }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; }
+  .tabs button.active { border-bottom-color: var(--accent); color: var(--accent); font-weight: 600; }
+  table.grid { border-collapse: collapse; width: 100%; background: var(--panel); border: 1px solid var(--line); }
+  table.grid th, table.grid td { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+  table.grid th { background: var(--code); font-weight: 600; position: sticky; top: 0; }
+  table.grid td { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; background: var(--panel); margin-bottom: 12px; }
+  .drop.over { border-color: var(--accent); background: var(--accent-weak); }
+  pre { background: var(--code); padding: 12px; border-radius: 8px; overflow: auto; }
+  .toast { position: fixed; right: 16px; bottom: 16px; max-width: 520px; padding: 10px 14px; border-radius: 8px; color: #fff; background: var(--ok); box-shadow: 0 4px 16px rgba(0,0,0,.2); white-space: pre-wrap; z-index: 10; }
+  .toast.err { background: var(--danger); }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+  .hist { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .hist button { text-align: left; font-family: ui-monospace, Consolas, monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } aside { border-right: none; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cassandra UI</h1>
+  <span class="info" id="info">подключение…</span>
+  <nav>
+    <button id="btnCql">CQL-консоль</button>
+    <button id="btnRefresh" title="Обновить список keyspace и таблиц">Обновить</button>
+  </nav>
+</header>
+<div class="layout">
+  <aside>
+    <div class="row"><button class="primary" id="btnNewKs">+ Keyspace</button></div>
+    <div id="tree"><div class="muted">Загрузка…</div></div>
+  </aside>
+  <main id="main"><div class="empty">Выберите таблицу слева или создайте keyspace.</div></main>
+</div>
+<input type="file" id="fileInput" multiple hidden>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const enc = encodeURIComponent;
+const fmtSize = (n) => n == null ? '—' : n < 1024 ? `${n} Б` : n < 1048576 ? `${(n / 1024).toFixed(1)} КБ` : `${(n / 1048576).toFixed(1)} МБ`;
+
+let state = { keyspaces: [], ks: null, table: null, tab: 'files', info: null };
+
+async function api(method, url, body) {
+  const opts = { method, headers: {} };
+  if (body instanceof FormData) opts.body = body;
+  else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
+  const r = await fetch(url, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+let toastTimer;
+function toast(msg, err = false) {
+  document.querySelectorAll('.toast').forEach((t) => t.remove());
+  const t = document.createElement('div');
+  t.className = 'toast' + (err ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.remove(), err ? 8000 : 3000);
+}
+const guard = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message, true); } };
+
+// ---------- дерево ----------
+async function loadInfo() {
+  try {
+    state.info = await api('GET', '/api/info');
+    $('#info').textContent = `Cassandra ${state.info.version} · ${state.info.host} · dc ${state.info.dc}`;
+  } catch (e) { $('#info').textContent = e.message; }
+}
+async function loadTree() {
+  try { state.keyspaces = await api('GET', '/api/keyspaces'); }
+  catch (e) { $('#tree').innerHTML = `<div class="muted">${esc(e.message)}</div>`; return; }
+  const tree = $('#tree');
+  if (!state.keyspaces.length) { tree.innerHTML = '<div class="muted">Keyspace пока нет. Создайте первый кнопкой выше.</div>'; return; }
+  tree.innerHTML = state.keyspaces.map((ks) => `
+    <div class="ks">
+      <div class="ks-head">
+        <span>${esc(ks.name)}</span><span class="repl">${esc(ks.replication)}</span>
+        <span class="acts">
+          <button class="small" data-act="newtable" data-ks="${esc(ks.name)}" title="Создать таблицу для файлов (id uuid, content blob)">+ таблица</button>
+          <button class="small danger" data-act="dropks" data-ks="${esc(ks.name)}" title="Удалить keyspace со всеми таблицами">✕</button>
+        </span>
+      </div>
+      ${ks.tables.length ? ks.tables.map((t) => `
+        <div class="tbl ${state.ks === ks.name && state.table === t.name ? 'active' : ''}" data-act="open" data-ks="${esc(ks.name)}" data-t="${esc(t.name)}">
+          ${esc(t.name)} ${t.files ? '<span class="badge">файлы</span>' : ''}
+        </div>`).join('') : '<div class="tbl muted">таблиц нет</div>'}
+    </div>`).join('');
+}
+const findTable = (ks, t) => (state.keyspaces.find((k) => k.name === ks)?.tables || []).find((x) => x.name === t);
+
+$('#tree').addEventListener('click', guard(async (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const { act, ks, t } = el.dataset;
+  if (act === 'open') { state.ks = ks; state.table = t; state.tab = findTable(ks, t)?.files ? 'files' : 'rows'; await loadTree(); renderTable(); }
+  if (act === 'newtable') {
+    const name = prompt(`Новая таблица для файлов в ${ks}\n(колонки: id uuid PRIMARY KEY, content blob)\n\nИмя таблицы:`, 'obj');
+    if (!name) return;
+    const r = await api('POST', `/api/keyspaces/${enc(ks)}/file-table`, { name });
+    toast(`Таблица ${ks}.${r.name} создана`);
+    state.ks = ks; state.table = r.name; state.tab = 'files';
+    await loadTree(); renderTable();
+  }
+  if (act === 'dropks') {
+    if (prompt(`Удалить keyspace ${ks} со ВСЕМИ таблицами и данными?\nДля подтверждения введите его имя:`) !== ks) return;
+    await api('DELETE', `/api/keyspaces/${enc(ks)}`);
+    toast(`Keyspace ${ks} удалён`);
+    if (state.ks === ks) { state.ks = state.table = null; $('#main').innerHTML = '<div class="empty">Выберите таблицу слева.</div>'; }
+    await loadTree();
+  }
+}));
+
+$('#btnNewKs').addEventListener('click', guard(async () => {
+  const name = prompt('Имя нового keyspace\n(латиница в нижнем регистре, цифры и _):');
+  if (!name) return;
+  const r = await api('POST', '/api/keyspaces', { name, rf: 1 });
+  toast(`Keyspace ${r.name} создан (SimpleStrategy, RF 1). Таблицу для файлов - кнопка «+ таблица».`);
+  await loadTree();
+}));
+$('#btnRefresh').addEventListener('click', guard(async () => { await loadTree(); if (state.table) renderTable(); }));
+
+// ---------- таблица ----------
+function renderTable() {
+  const { ks, table } = state;
+  const t = findTable(ks, table);
+  if (!t) { $('#main').innerHTML = '<div class="empty">Таблица не найдена - обновите список.</div>'; return; }
+  const tabs = [...(t.files ? [['files', 'Файлы']] : []), ['rows', 'Данные'], ['schema', 'Схема']];
+  $('#main').innerHTML = `
+    <div class="row">
+      <h2 style="margin:0;font-size:18px">${esc(ks)}.${esc(table)}</h2>
+      ${t.files ? `<span class="badge">файлы: ${esc(t.files.key)} uuid → ${esc(t.files.blob)} blob</span>` : ''}
+      <span style="margin-left:auto"></span>
+      <button data-act="truncate">Очистить</button>
+      <button class="danger" data-act="drop">Удалить таблицу</button>
+    </div>
+    <div class="tabs">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${state.tab === k ? 'active' : ''}">${l}</button>`).join('')}</div>
+    <div id="tabBody"></div>`;
+  $('#main .tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) { state.tab = b.dataset.tab; renderTable(); } });
+  $('#main [data-act="truncate"]').addEventListener('click', guard(async () => {
+    if (!confirm(`Удалить ВСЕ строки из ${ks}.${table}? Таблица останется.`)) return;
+    await api('POST', `/api/tables/${enc(ks)}/${enc(table)}/truncate`);
+    toast('Таблица очищена'); renderTable();
+  }));
+  $('#main [data-act="drop"]').addEventListener('click', guard(async () => {
+    if (prompt(`Удалить таблицу ${ks}.${table} вместе с данными?\nДля подтверждения введите имя таблицы:`) !== table) return;
+    await api('DELETE', `/api/tables/${enc(ks)}/${enc(table)}`);
+    toast('Таблица удалена'); state.table = null; await loadTree();
+    $('#main').innerHTML = '<div class="empty">Выберите таблицу слева.</div>';
+  }));
+  ({ files: renderFiles, rows: renderRows, schema: renderSchema })[state.tab](t);
+}
+
+// ---------- файлы ----------
+async function renderFiles() {
+  const { ks, table } = state;
+  const base = `/api/files/${enc(ks)}/${enc(table)}`;
+  const max = state.info?.maxFileMb || 15;
+  $('#tabBody').innerHTML = `
+    <div class="drop" id="drop">
+      Перетащите файлы сюда или <button id="pick">выберите</button>
+      <div class="muted" style="margin-top:6px">до ${max} МБ на файл. UUID создастся сам или задайте свой (для одного файла):
+        <input id="customId" placeholder="UUID - необязательно" size="38"></div>
+    </div>
+    <div class="row">
+      <input id="search" placeholder="Найти по UUID" size="40"><button id="doSearch">Найти</button><button id="clearSearch">Все</button>
+      <span style="margin-left:auto"></span><button class="danger" id="delSel">Удалить отмеченные</button>
+    </div>
+    <table class="grid"><thead><tr><th style="width:28px"><input type="checkbox" id="all"></th><th>UUID</th><th style="width:110px">Размер</th><th style="width:260px"></th></tr></thead>
+    <tbody id="list"></tbody></table>
+    <div class="row" style="margin-top:8px"><button id="more" hidden>Показать ещё</button><span class="muted" id="count"></span></div>`;
+
+  let pageState = null; let shown = 0;
+  const list = $('#list');
+  async function load(reset, id) {
+    if (reset) { list.innerHTML = ''; pageState = null; shown = 0; }
+    const qs = new URLSearchParams({ limit: 50 });
+    if (pageState) qs.set('pageState', pageState);
+    if (id) qs.set('id', id);
+    const r = await api('GET', `${base}?${qs}`);
+    pageState = r.pageState;
+    shown += r.files.length;
+    list.insertAdjacentHTML('beforeend', r.files.map((f) => `
+      <tr data-id="${esc(f.id)}">
+        <td><input type="checkbox" class="sel"></td>
+        <td>${esc(f.id)}</td><td>${fmtSize(f.size)}</td>
+        <td style="white-space:nowrap">
+          <button class="small" data-act="copy">Копировать UUID</button>
+          <a class="btn small" href="${base}/${enc(f.id)}?inline=1" target="_blank">Открыть</a>
+          <a class="btn small" href="${base}/${enc(f.id)}">Скачать</a>
+          <button class="small danger" data-act="del">✕</button>
+        </td>
+      </tr>`).join(''));
+    if (!shown) list.innerHTML = `<tr><td colspan="4" class="muted">${id ? 'Не найдено' : 'Файлов пока нет'}</td></tr>`;
+    $('#more').hidden = !pageState;
+    $('#count').textContent = shown ? `показано: ${shown}${pageState ? '+' : ''}` : '';
+  }
+  async function del(ids) {
+    if (!ids.length || !confirm(`Удалить файлов: ${ids.length}?`)) return;
+    await api('DELETE', base, { ids });
+    toast(`Удалено: ${ids.length}`); await load(true);
+  }
+  async function uploadFiles(files) {
+    if (!files.length) return;
+    const tooBig = [...files].filter((f) => f.size > max * 1048576);
+    if (tooBig.length) { toast(`Больше ${max} МБ: ${tooBig.map((f) => f.name).join(', ')}`, true); return; }
+    const fd = new FormData();
+    [...files].forEach((f) => fd.append('files', f));
+    const custom = $('#customId').value.trim();
+    if (custom) fd.append('id', custom);
+    const r = await api('POST', base, fd);
+    toast('Загружено:\n' + r.saved.map((s) => `${s.name} → ${s.id}`).join('\n'));
+    $('#customId').value = '';
+    await load(true);
+  }
+
+  list.addEventListener('click', guard(async (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const id = b.closest('tr').dataset.id;
+    if (b.dataset.act === 'copy') { await navigator.clipboard.writeText(id); toast('UUID скопирован'); }
+    if (b.dataset.act === 'del') await del([id]);
+  }));
+  $('#all').addEventListener('change', (e) => list.querySelectorAll('.sel').forEach((c) => { c.checked = e.target.checked; }));
+  $('#delSel').addEventListener('click', guard(() => del([...list.querySelectorAll('.sel:checked')].map((c) => c.closest('tr').dataset.id))));
+  $('#more').addEventListener('click', guard(() => load(false)));
+  $('#doSearch').addEventListener('click', guard(() => { const v = $('#search').value.trim(); return v ? load(true, v) : load(true); }));
+  $('#search').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#doSearch').click(); });
+  $('#clearSearch').addEventListener('click', guard(() => { $('#search').value = ''; return load(true); }));
+  const fi = $('#fileInput');
+  $('#pick').onclick = () => { fi.value = ''; fi.click(); };
+  fi.onchange = guard(() => uploadFiles(fi.files));
+  const drop = $('#drop');
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', guard(async (e) => { e.preventDefault(); drop.classList.remove('over'); await uploadFiles(e.dataTransfer.files); }));
+  await guard(() => load(true))();
+}
+
+// ---------- данные и схема ----------
+function cell(v) {
+  if (v && typeof v === 'object' && 'blob' in v) return `<span class="muted">blob ${fmtSize(v.blob)}</span>`;
+  if (v === null) return '<span class="muted">null</span>';
+  const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  return `<span title="${esc(s)}">${esc(s)}</span>`;
+}
+function grid(r) {
+  if (!r.columns.length) return '<div class="muted">Запрос выполнен, результата нет.</div>';
+  return `<table class="grid"><thead><tr>${r.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${r.rows.length ? r.rows.map((row) => `<tr>${row.map((v) => `<td>${cell(v)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${r.columns.length}" class="muted">Строк нет</td></tr>`}</tbody></table>`;
+}
+async function renderRows() {
+  const { ks, table } = state;
+  $('#tabBody').innerHTML = '<div id="rows"></div><div class="row" style="margin-top:8px"><button id="moreRows" hidden>Показать ещё</button></div>';
+  let pageState = null; let acc = null;
+  async function load() {
+    const qs = new URLSearchParams({ limit: 50 }); if (pageState) qs.set('pageState', pageState);
+    const r = await api('GET', `/api/tables/${enc(ks)}/${enc(table)}/rows?${qs}`);
+    acc = acc ? { ...r, rows: acc.rows.concat(r.rows) } : r;
+    pageState = r.pageState;
+    $('#rows').innerHTML = grid(acc);
+    $('#moreRows').hidden = !pageState;
+  }
+  $('#moreRows').addEventListener('click', guard(load));
+  await guard(load)();
+}
+async function renderSchema() {
+  const { ks, table } = state;
+  const r = await api('GET', `/api/tables/${enc(ks)}/${enc(table)}/schema`).catch((e) => ({ cql: e.message, columns: [] }));
+  $('#tabBody').innerHTML = `<pre>${esc(r.cql)}</pre>`;
+}
+
+// ---------- CQL-консоль ----------
+const HIST_KEY = 'cassandra-ui-history';
+const loadHist = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
+const saveHist = (h) => { try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 20))); } catch { /* недоступно - без истории */ } };
+const EXAMPLES = [
+  "CREATE KEYSPACE IF NOT EXISTS my_app WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};",
+  'CREATE TABLE IF NOT EXISTS my_app.obj (id uuid PRIMARY KEY, content blob);',
+  'CREATE TABLE IF NOT EXISTS my_app.events (id uuid, created timestamp, payload text, PRIMARY KEY (id, created)) WITH CLUSTERING ORDER BY (created DESC);',
+  'SELECT keyspace_name, table_name FROM system_schema.tables;',
+  'DESCRIBE KEYSPACES;',
+];
+function renderCql() {
+  state.ks = state.table = null; loadTree();
+  $('#main').innerHTML = `
+    <h2 style="margin:0 0 8px;font-size:18px">CQL-консоль</h2>
+    <div class="muted" style="margin-bottom:8px">Один запрос за раз. Выполнить - кнопка или Ctrl+Enter. Таблицы для своих проектов создаются здесь.</div>
+    <textarea id="cql" rows="6" placeholder="SELECT * FROM my_app.obj LIMIT 10;"></textarea>
+    <div class="row" style="margin-top:8px"><button class="primary" id="run">Выполнить</button><span class="muted" id="took"></span></div>
+    <div id="result"></div>
+    <div class="row" style="margin-top:8px"><button id="moreCql" hidden>Показать ещё</button></div>
+    <h3 style="font-size:14px;margin:20px 0 4px">Примеры</h3><div class="hist" id="examples">${EXAMPLES.map((x) => `<button>${esc(x)}</button>`).join('')}</div>
+    <h3 style="font-size:14px;margin:20px 0 4px">История</h3><div class="hist" id="hist"></div>`;
+  const drawHist = () => { $('#hist').innerHTML = loadHist().map((x) => `<button>${esc(x)}</button>`).join('') || '<span class="muted">пусто</span>'; };
+  drawHist();
+  let acc = null; let pageState = null; let lastQuery = '';
+  async function run(more) {
+    const query = more ? lastQuery : $('#cql').value.trim();
+    if (!query) return;
+    if (!more) { acc = null; pageState = null; lastQuery = query; saveHist([query, ...loadHist().filter((x) => x !== query)]); drawHist(); }
+    const r = await api('POST', '/api/cql', { query, pageState: more ? pageState : undefined });
+    acc = acc ? { ...r, rows: acc.rows.concat(r.rows) } : r;
+    pageState = r.pageState;
+    $('#result').innerHTML = grid(acc);
+    $('#took').textContent = `${r.ms} мс${acc.columns.length ? `, строк: ${acc.rows.length}${pageState ? '+' : ''}` : ''}`;
+    $('#moreCql').hidden = !pageState;
+    if (/^\s*(create|drop|alter)\b/i.test(query)) loadTree();
+  }
+  $('#run').addEventListener('click', guard(() => run(false)));
+  $('#moreCql').addEventListener('click', guard(() => run(true)));
+  $('#cql').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('#run').click(); } });
+  const fill = (e) => { const b = e.target.closest('button'); if (b) { $('#cql').value = b.textContent; $('#cql').focus(); } };
+  $('#examples').addEventListener('click', fill);
+  $('#hist').addEventListener('click', fill);
+}
+$('#btnCql').addEventListener('click', renderCql);
+
+loadInfo();
+loadTree();
+</script>
+</body>
+</html>

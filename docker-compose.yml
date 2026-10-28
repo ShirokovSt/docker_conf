@@ -1,5 +1,5 @@
 # Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark,
-# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов, тестовая почта (Mailpit); TeamCity - через include.
+# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов, тестовая почта (Mailpit), Cassandra; TeamCity - через include.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
@@ -406,6 +406,47 @@ services:
       - ./mailpit/data:/data
     restart: "no"
 
+  # Cassandra 5: CQL localhost:9042 (из контейнеров - cassandra:9042), датацентр datacenter1, без логина.
+  # Заранее ничего не создаётся: keyspace'ы и таблицы - в веб-интерфейсе (cassandra-ui) или через cqlsh.
+  # Данные - в именованном томе: Cassandra работает не от root, bind mount с Windows ей не подходит.
+  cassandra:
+    image: cassandra:5.0.9
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      MAX_HEAP_SIZE: 1G       # без ограничения Cassandra берёт четверть памяти ПК
+      HEAP_NEWSIZE: 256M
+      CASSANDRA_CLUSTER_NAME: devstack
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces' > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      start_period: 120s
+      retries: 10
+    restart: "no"
+
+  # Веб-интерфейс Cassandra (свой, cassandra/ui): keyspace'ы, таблицы, файлы в blob, CQL-консоль -
+  # http://localhost:8097, без логина. Образ собирается при первом запуске.
+  cassandra-ui:
+    build: ./cassandra/ui
+    image: devstack/cassandra-ui:1
+    container_name: cassandra-ui
+    ports:
+      - "8097:8080"
+    environment:
+      CASSANDRA_HOST: cassandra
+      CASSANDRA_PORT: "9042"
+      CASSANDRA_DC: datacenter1
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    restart: "no"
+
 # Сеть проекта devstack_default создаётся не compose, а _net.bat при первом запуске из bat-файлов: он подбирает
 # подсеть, свободную на этом ПК. Сам Docker берёт подсети из 172.17-172.31, а там же бывают сети, к которым
 # подключён ПК (VPN и т.п.): при пересечении контейнеры до них не достают. Compose подключается к готовой сети
@@ -422,3 +463,4 @@ volumes:
   pgadmin-data:
   prometheus-data:
   grafana-data:
+  cassandra-data:

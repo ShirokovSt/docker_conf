@@ -26,6 +26,7 @@ echo  grafana        http://localhost:3000                  -                   
 echo  prometheus     http://localhost:9090/targets          читает Spring на :8199                 без логина
 echo  converter      http://localhost:8095/swagger-ui.html  http://localhost:8095/lool/convert-to  без логина
 echo  mailpit        http://localhost:8025                  smtp localhost:1025, без TLS           без логина
+echo  cassandra      http://localhost:8097                  localhost:9042, dc datacenter1         без логина
 echo.
 echo  CI/CD
 echo  Сервис         UI                                     Подключение                            Вход

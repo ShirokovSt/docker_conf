@@ -1,6 +1,6 @@
 # Локальные сервисы в Docker
 
-Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг Spring-приложений (Prometheus + Grafana), конвертер документов, тестовая почта (Mailpit) и CI/CD (TeamCity) с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`, TeamCity подключён из своей папки). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus и Grafana: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
+Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг Spring-приложений (Prometheus + Grafana), конвертер документов, тестовая почта (Mailpit), Cassandra и CI/CD (TeamCity) с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`, TeamCity подключён из своей папки). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus, Grafana и Cassandra: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
 
 ## Ссылки, порты, ключи
 
@@ -36,6 +36,7 @@
 | Мониторинг: Prometheus + Grafana | [monitoring](monitoring/README.md) | http://localhost:3000 (Grafana), http://localhost:9090 (Prometheus) | сам читает `/actuator/prometheus` Spring-приложений на порту **8199** (другие порты — в `monitoring\prometheus\targets.yml`) и метрики TeamCity | без логина |
 | Конвертер документов (LibreOffice + JODConverter) | [converter](converter/README.md) | http://localhost:8095/swagger-ui.html (Swagger UI) | `POST http://localhost:8095/lool/convert-to` (API LibreOffice Online: поля `data` и `format`) | без логина |
 | Тестовая почта (Mailpit) | [mailpit](mailpit/README.md) | http://localhost:8025 | SMTP `localhost:1025` (из контейнеров — `mailpit:1025`), без TLS, логин и пароль любые | без логина |
+| Cassandra 5 + веб-интерфейс | [cassandra](cassandra/README.md) | http://localhost:8097 (keyspace'ы, таблицы, файлы, CQL) | `localhost:9042`, датацентр `datacenter1`; keyspace и таблицы создаются в интерфейсе | без логина |
 
 Spark работает без Hadoop-кластера (HDFS/YARN не нужны): файлы лежат в папке `spark\data`, работать с ними удобно через File Browser — подробнее в [spark/README.md](spark/README.md).
 
@@ -58,7 +59,7 @@ PostgreSQL доступен на порту **5434**.
 | `start-all.bat` | запускает **всё** и печатает ссылки |
 | `stop-all.bat` | останавливает всё |
 | `start-s3.bat` / `stop-s3.bat` | только S3-хранилища |
-| `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, почта (вместе с UI) |
+| `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, почта, Cassandra (вместе с UI) |
 | `start-cicd.bat` / `stop-cicd.bat` | только CI/CD: TeamCity, его БД, агенты |
 | `teamcity\start.bat` / `teamcity\stop.bat` | то же, из папки `teamcity` |
 | `status.bat` | статус контейнеров + ссылки |
@@ -71,7 +72,7 @@ PostgreSQL доступен на порту **5434**.
 
 Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`, часовой пояс ПК для контейнеров TeamCity определяет `teamcity\_tz.bat`, добавленных агентов TeamCity находит `teamcity\_agents.bat`, сеть Docker со свободной подсетью создаёт `_net.bat` (с `_net.ps1`). Это служебные файлы, запускать их не нужно.
 
-**Память.** Всё вместе занимает около 10 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, конвертер ~0.5 ГБ, почта ~30 МБ, TeamCity ~2.5 ГБ (сервер ~1.8 ГБ, агент ~0.7 ГБ в простое, каждый следующий агент — ещё столько же и больше во время сборки), остальное меньше. Без TeamCity — около 7 ГБ: `start-s3.bat` + `start-services.bat`. При первом запуске TeamCity образ агента собирается несколько минут. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
+**Память.** Всё вместе занимает около 11,5 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, конвертер ~0.5 ГБ, почта ~30 МБ, Cassandra ~1.5 ГБ, TeamCity ~2.5 ГБ (сервер ~1.8 ГБ, агент ~0.7 ГБ в простое, каждый следующий агент — ещё столько же и больше во время сборки), остальное меньше. Без TeamCity — около 8,5 ГБ: `start-s3.bat` + `start-services.bat`. При первом запуске TeamCity образ агента собирается несколько минут. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
 
 То же из консоли (в этой папке):
 

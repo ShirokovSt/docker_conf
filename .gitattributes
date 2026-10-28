@@ -11,3 +11,6 @@ teamcity/agent/devstack-sync text eol=lf
 
 # скрипты сервера TeamCity (инициализация, хранение логов) запускаются в Linux-контейнере: только LF
 teamcity/*.sh text eol=lf
+
+# веб-интерфейс Cassandra собирается в Linux-образе: только LF
+cassandra/ui/** text eol=lf
