@@ -431,10 +431,12 @@ services:
     restart: "no"
 
   # Веб-интерфейс Cassandra (свой, cassandra/ui): keyspace'ы, таблицы, файлы в blob, CQL-консоль -
-  # http://localhost:8097, без логина. Образ собирается при первом запуске.
+  # http://localhost:8097, без логина. Образ собирается при каждом up (pull_policy: build): без изменений -
+  # из кэша за секунды, после правок в cassandra/ui контейнер пересоздаётся с новым кодом.
   cassandra-ui:
     build: ./cassandra/ui
     image: devstack/cassandra-ui:1
+    pull_policy: build
     container_name: cassandra-ui
     ports:
       - "8097:8080"
