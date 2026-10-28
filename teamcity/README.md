@@ -22,6 +22,7 @@
 3. Остальное делает [server-init.sh](server-init.sh) при каждом запуске сервера:
    - JDBC-драйвер PostgreSQL качается с Maven Central (кнопка мастера качает с download.jetbrains.com, а он из РФ отвечает 451);
    - если пользователей нет — создаётся администратор `admin` / `admin123` (`TEAMCITY_ADMIN_USER` / `TEAMCITY_ADMIN_PASSWORD` в [docker-compose.yml](docker-compose.yml), потом пароль меняется в UI). Если мастер предложит создать администратора — обновите страницу и войдите под `admin`;
+   - максимальный размер артефакта — 1024 МБ вместо 300 МБ у TeamCity по умолчанию: `TEAMCITY_MAX_ARTIFACT_MB` в [docker-compose.yml](docker-compose.yml) или `.env`, менять там, а не в Global Settings;
    - если правила хранения логов нет — ставится «3 последних билда» (см. «Хранение логов билдов»).
 4. **Agents → Unauthorized → Authorize** для `Agent (devstack)-1`. Один раз: авторизация хранится в томе агента.
 
@@ -128,5 +129,6 @@ Remote Run собирает незакоммиченные изменения к
 - **Сборки идут медленно, агенты падают** — не хватает памяти Docker Desktop: лимит WSL2 по умолчанию — половина RAM, поднимается в `%UserProfile%\.wslconfig` (`[wsl2]` → `memory=24GB`, затем `wsl --shutdown`). У каждого агента свой кеш Gradle — первая сборка на новом агенте всегда долгая.
 - **Сборка не достаёт до сервера** (`Connection timed out`) — пересечение подсетей, см. «Сеть» в [../README.md](../README.md); частая причина — сети, оставленные Testcontainers: `docker network prune`.
 - **Ошибки 451 от download.jetbrains.com** в логе — обновления плагинов из РФ не скачиваются, на сборки не влияет.
+- **`Artifact file ... exceeds maximum allowed size`** — артефакт больше `TEAMCITY_MAX_ARTIFACT_MB` (по умолчанию 1024 МБ): увеличить в `.env`, затем `stop.bat` + `start.bat`.
 - **`Failed to retrieve uploaded ssh key`** — ключа нет в проекте или родительских (Root project → SSH Keys).
 - **Начать с нуля** — `docker compose stop teamcity teamcity-db teamcity-agent-1`, затем `docker volume rm devstack_teamcity-data devstack_teamcity-db-data devstack_teamcity-agent-1-conf devstack_teamcity-agent-1-work devstack_teamcity-agent-1-home` — **удалит все настройки и историю**.

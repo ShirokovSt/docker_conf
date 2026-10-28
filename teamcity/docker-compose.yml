@@ -65,6 +65,9 @@ services:
       # Им же Prometheus читает метрики сервера (monitoring/prometheus/prometheus.yml).
       TEAMCITY_ADMIN_USER: admin
       TEAMCITY_ADMIN_PASSWORD: admin123
+      # максимальный размер одного артефакта, МБ (Global Settings; у TeamCity по умолчанию 300 - war бывает больше).
+      # Ставит server-init.sh при каждом запуске: менять здесь или в .env, а не в UI
+      TEAMCITY_MAX_ARTIFACT_MB: ${TEAMCITY_MAX_ARTIFACT_MB:-1024}
     volumes:
       - teamcity-data:/data/teamcity_server/datadir
       - ./logs:/opt/teamcity/logs

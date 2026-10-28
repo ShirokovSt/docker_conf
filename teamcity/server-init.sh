@@ -7,6 +7,7 @@
 # 2. В фоне ждём, пока сервер запустится (после первого старта - пока в мастере примут лицензию), и:
 #    - если пользователей ещё нет, создаём TEAMCITY_ADMIN_USER / TEAMCITY_ADMIN_PASSWORD через REST API
 #      с токеном суперпользователя, который сервер пишет в лог при каждом запуске;
+#    - выставляем максимальный размер артефакта из TEAMCITY_MAX_ARTIFACT_MB (у TeamCity по умолчанию 300 МБ);
 #    - если правила хранения логов билдов ещё нет, ставим его: 3 последних билда (log-retention.sh);
 #    - дальше раз в минуту следим за билдами и после каждого завершённого запускаем очистку:
 #      так логов у конфигурации не больше N (log-retention.sh), а не только после ночной очистки.
@@ -32,6 +33,15 @@ init() {
       -H 'Content-Type: application/json' "$tc/app/rest/users" \
       -d "{\"username\":\"$TEAMCITY_ADMIN_USER\",\"password\":\"$TEAMCITY_ADMIN_PASSWORD\",\"roles\":{\"role\":[{\"roleId\":\"SYSTEM_ADMIN\",\"scope\":\"g\"}]}}")
     echo "TeamCity admin $TEAMCITY_ADMIN_USER: HTTP $code"
+  fi
+
+  # Максимальный размер артефакта (Administration -> Global Settings) - из TEAMCITY_MAX_ARTIFACT_MB
+  local max=$(( ${TEAMCITY_MAX_ARTIFACT_MB:-1024} * 1024 * 1024 )) gs
+  gs=$(curl -s -u ":$token" -H 'Accept: application/json' "$tc/app/rest/server/globalSettings")
+  if [ -n "$gs" ] && ! printf '%s' "$gs" | grep -q "\"maxArtifactSize\":$max[,}]"; then
+    printf '%s' "$gs" | sed "s/\"maxArtifactSize\":[0-9-]*/\"maxArtifactSize\":$max/" \
+      | curl -s -o /dev/null -u ":$token" -X PUT -H 'Content-Type: application/json' --data @- "$tc/app/rest/server/globalSettings" \
+      && echo "Max artifact size: ${TEAMCITY_MAX_ARTIFACT_MB:-1024} MB"
   fi
 
   local r=/opt/devstack/log-retention.sh

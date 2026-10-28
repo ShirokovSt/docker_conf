@@ -216,8 +216,10 @@ set /p "a=Выберите: "
 if not defined a goto menu
 if "%a%"=="1" goto cicd_start
 if "%a%"=="2" goto cicd_stop
+rem перезапуск TeamCity - пересоздание контейнера: restart не перечитывает .env (TEAMCITY_HOST_DIR и др.),
+rem данные в томах сохраняются; --no-deps - базу teamcity-db не трогаем
 if "%a%"=="3" (
-    docker compose restart teamcity
+    docker compose up -d --force-recreate --no-deps teamcity
     pause
     goto cicd
 )
@@ -250,7 +252,7 @@ if not "%n%"=="1" if not "%n%"=="2" if not "%n%"=="3" goto cicd
 if "%act%"=="delete"  goto agent_delete
 if "%act%"=="start"   docker compose up -d teamcity-agent-%n%
 if "%act%"=="stop"    docker compose stop teamcity-agent-%n%
-if "%act%"=="restart" docker compose restart teamcity-agent-%n%
+if "%act%"=="restart" docker compose up -d --force-recreate --no-deps teamcity-agent-%n%
 if "%act%"=="logs"    docker compose logs --tail 100 teamcity-agent-%n%
 pause
 goto cicd
