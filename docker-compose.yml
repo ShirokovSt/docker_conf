@@ -1,5 +1,5 @@
 # Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark,
-# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов, тестовая почта (Mailpit), Cassandra; TeamCity - через include.
+# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов, тестовая почта (Mailpit), Cassandra, логи контейнеров (Dozzle); TeamCity - через include.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
@@ -447,6 +447,26 @@ services:
     depends_on:
       cassandra:
         condition: service_healthy
+    restart: "no"
+
+  # Dozzle - логи всех контейнеров в браузере (поиск, несколько рядом), запуск/остановка/перезапуск - http://localhost:8098.
+  # Docker socket даёт ему управление Docker, поэтому порт открыт только для этого ПК (127.0.0.1). Консоль (shell) выключена.
+  # Мастер первого запуска, аналитика и проверки обновлений выключены; ./dozzle/data - только dozzle.yml, если менять настройки в UI.
+  dozzle:
+    image: amir20/dozzle:v11.3.5
+    container_name: dozzle
+    ports:
+      - "127.0.0.1:8098:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./dozzle/data:/data
+    environment:
+      DOZZLE_HOSTNAME: devstack
+      DOZZLE_ENABLE_ACTIONS: "true"
+      DOZZLE_NO_ANALYTICS: "true"
+      DOZZLE_DISABLE_SETUP_WIZARD: "true"
+      DOZZLE_RELEASE_CHECK_MODE: manual
+      DOZZLE_IMAGE_CHECK_MODE: "off"
     restart: "no"
 
 # Сеть проекта devstack_default создаётся не compose, а _net.bat при первом запуске из bat-файлов: он подбирает

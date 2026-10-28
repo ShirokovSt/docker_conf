@@ -12,7 +12,7 @@ if errorlevel 1 (
 rem сеть devstack_default с подсетью, свободной на этом ПК (один раз создаёт _net.bat)
 call "%~dp0_net.bat" || (pause & exit /b 1)
 
-echo Запуск всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, почта, Cassandra, TeamCity...
+echo Запуск всех контейнеров: S3-хранилища и S3 Manager, Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, почта, Cassandra, Dozzle, TeamCity...
 docker compose up -d
 rem добавленные агенты TeamCity (2, 3) - если есть
 call "%~dp0teamcity\_agents.bat"
