@@ -36,3 +36,9 @@ echo  teamcity       http://localhost:8111                  агенты, Remote
 echo  база TeamCity  http://localhost:5050                  pgAdmin, сервер teamcity-db            без логина
 echo  метрики        http://localhost:3000                  Grafana, дашборд TeamCity              без логина
 echo.
+echo  Анализ кода
+echo  Сервис         UI                                     Подключение                            Вход
+echo  -------------  -------------------------------------  -------------------------------------  ----------------
+echo  sonarqube      http://localhost:9010                  из контейнеров - http://sonarqube:9000  admin / admin123
+echo  анализ         http://localhost:9011                  sonarqube\analyze.bat ^<папка проекта^>  без логина
+echo.
