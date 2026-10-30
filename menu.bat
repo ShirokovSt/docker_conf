@@ -325,10 +325,11 @@ if "%n%"=="1" (
     pause
     goto cicd
 )
-docker compose rm -sf teamcity-agent-%n%
+rem -v - вместе с анонимными томами контейнера (есть у агентов, созданных до перевода всех папок на именованные тома)
+docker compose rm -sfv teamcity-agent-%n%
 set "yn="
-set /p "yn=Удалить и данные агента - авторизацию, рабочие папки, кеши Gradle и Maven? (y/n): "
-if /i "%yn%"=="y" docker volume rm devstack_teamcity-agent-%n%-conf devstack_teamcity-agent-%n%-work devstack_teamcity-agent-%n%-home
+set /p "yn=Удалить и данные агента - авторизацию, рабочие папки, кеши Gradle и Maven, плагины? (y/n): "
+if /i "%yn%"=="y" for %%v in (conf work home plugins tools system temp logs) do docker volume rm devstack_teamcity-agent-%n%-%%v
 echo.
 echo   В TeamCity агент останется в списке как Disconnected - убрать: Agents - агент - Remove.
 pause

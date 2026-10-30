@@ -34,8 +34,9 @@
 | Настройки проектов, артефакты, логи сборок, JDBC-драйвер | data directory, том `devstack_teamcity-data` (`/data/teamcity_server/datadir`) |
 | Логи сервера | папка `teamcity\logs` |
 | Авторизация, checkout, кеши Gradle / Maven агента | тома `devstack_teamcity-agent-N-conf`, `-work`, `-home` |
+| Плагины, инструменты, служебные данные, temp и логи агента | тома `devstack_teamcity-agent-N-plugins`, `-tools`, `-system`, `-temp`, `-logs` |
 
-Тома переживают пересоздание контейнеров и обновление образов, **удаляются только `docker compose down -v`** или `docker volume rm`. Бэкап: **Administration → Backup → Start Backup**, затем `docker cp teamcity:/data/teamcity_server/datadir/backup teamcity\backup`; только база — `docker exec teamcity-db pg_dump -U teamcity -Fc teamcity > teamcity\teamcity.dump`.
+Тома переживают пересоздание контейнеров и обновление образов, **удаляются только `docker compose down -v`** или `docker volume rm`. Все папки, которые образ агента объявляет томами, подключены к именованным томам, а `/var/lib/docker` — к `tmpfs`, поэтому анонимных томов у агентов нет и после удаления контейнера ничьих томов не остаётся. Анонимные тома агентов, созданных до этого, при первом запуске становятся ничьими (~0,5 ГБ на агента; плагины агент заново скачает с сервера за 1–2 минуты) — удалить их: `docker volume prune`. Бэкап: **Administration → Backup → Start Backup**, затем `docker cp teamcity:/data/teamcity_server/datadir/backup teamcity\backup`; только база — `docker exec teamcity-db pg_dump -U teamcity -Fc teamcity > teamcity\teamcity.dump`.
 
 ## Папки этого ПК в сборках (`/host`)
 
@@ -131,4 +132,4 @@ Remote Run собирает незакоммиченные изменения к
 - **Ошибки 451 от download.jetbrains.com** в логе — обновления плагинов из РФ не скачиваются, на сборки не влияет.
 - **`Artifact file ... exceeds maximum allowed size`** — артефакт больше `TEAMCITY_MAX_ARTIFACT_MB` (по умолчанию 1024 МБ): увеличить в `.env`, затем `stop.bat` + `start.bat`.
 - **`Failed to retrieve uploaded ssh key`** — ключа нет в проекте или родительских (Root project → SSH Keys).
-- **Начать с нуля** — `docker compose stop teamcity teamcity-db teamcity-agent-1`, затем `docker volume rm devstack_teamcity-data devstack_teamcity-db-data devstack_teamcity-agent-1-conf devstack_teamcity-agent-1-work devstack_teamcity-agent-1-home` — **удалит все настройки и историю**.
+- **Начать с нуля** — `docker compose rm -sfv teamcity teamcity-db teamcity-agent-1` (том, к которому подключён хотя бы остановленный контейнер, не удаляется), затем `docker volume rm devstack_teamcity-data devstack_teamcity-db-data` и в cmd `for %v in (conf work home plugins tools system temp logs) do docker volume rm devstack_teamcity-agent-1-%v` — **удалит все настройки и историю**.

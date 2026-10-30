@@ -17,6 +17,10 @@ x-teamcity-agent: &teamcity-agent
   # Это значит, что любая сборка управляет Docker Desktop с правами root (обычно для CI с Docker и Testcontainers).
   group_add:
     - "0"
+  # /var/lib/docker нужен образу только для Docker внутри агента (здесь не используется - сборки работают
+  # с Docker Desktop через сокет). tmpfs вместо тома: иначе Docker создаёт под него анонимный том.
+  tmpfs:
+    - /var/lib/docker
   depends_on:
     - teamcity
   restart: "no"
@@ -80,6 +84,9 @@ services:
 
   # Агенты: имена Agent (devstack)-N. Конфиг (авторизация), рабочая папка и кеши
   # Gradle/Maven - в томах, переживают пересоздание контейнера.
+  # Остальные папки, которые образ объявляет как VOLUME (plugins, tools, system, temp, logs), тоже в именованных
+  # томах: без них Docker создаёт анонимные тома (~0,5 ГБ на агента), а после удаления контейнера
+  # (docker compose down, удаление агента) они остаются на диске ничьими.
   # По умолчанию запускается только teamcity-agent-1. Агенты 2 и 3 добавляются из menu.bat (пункт 10
   # "Агенты CI/CD") или docker compose up -d teamcity-agent-2. Профили agent-2 / agent-3 - только чтобы
   # docker compose up без имён не создавал их сам; добавленных агентов start-all / start-cicd поднимают
@@ -95,6 +102,11 @@ services:
       - teamcity-agent-1-conf:/data/teamcity_agent/conf
       - teamcity-agent-1-work:/opt/buildagent/work
       - teamcity-agent-1-home:/home/buildagent
+      - teamcity-agent-1-plugins:/opt/buildagent/plugins
+      - teamcity-agent-1-tools:/opt/buildagent/tools
+      - teamcity-agent-1-system:/opt/buildagent/system
+      - teamcity-agent-1-temp:/opt/buildagent/temp
+      - teamcity-agent-1-logs:/opt/buildagent/logs
       - /var/run/docker.sock:/var/run/docker.sock
       - *teamcity-host
 
@@ -109,6 +121,11 @@ services:
       - teamcity-agent-2-conf:/data/teamcity_agent/conf
       - teamcity-agent-2-work:/opt/buildagent/work
       - teamcity-agent-2-home:/home/buildagent
+      - teamcity-agent-2-plugins:/opt/buildagent/plugins
+      - teamcity-agent-2-tools:/opt/buildagent/tools
+      - teamcity-agent-2-system:/opt/buildagent/system
+      - teamcity-agent-2-temp:/opt/buildagent/temp
+      - teamcity-agent-2-logs:/opt/buildagent/logs
       - /var/run/docker.sock:/var/run/docker.sock
       - *teamcity-host
 
@@ -123,6 +140,11 @@ services:
       - teamcity-agent-3-conf:/data/teamcity_agent/conf
       - teamcity-agent-3-work:/opt/buildagent/work
       - teamcity-agent-3-home:/home/buildagent
+      - teamcity-agent-3-plugins:/opt/buildagent/plugins
+      - teamcity-agent-3-tools:/opt/buildagent/tools
+      - teamcity-agent-3-system:/opt/buildagent/system
+      - teamcity-agent-3-temp:/opt/buildagent/temp
+      - teamcity-agent-3-logs:/opt/buildagent/logs
       - /var/run/docker.sock:/var/run/docker.sock
       - *teamcity-host
 
@@ -133,9 +155,24 @@ volumes:
   teamcity-agent-1-conf:
   teamcity-agent-1-work:
   teamcity-agent-1-home:
+  teamcity-agent-1-plugins:
+  teamcity-agent-1-tools:
+  teamcity-agent-1-system:
+  teamcity-agent-1-temp:
+  teamcity-agent-1-logs:
   teamcity-agent-2-conf:
   teamcity-agent-2-work:
   teamcity-agent-2-home:
+  teamcity-agent-2-plugins:
+  teamcity-agent-2-tools:
+  teamcity-agent-2-system:
+  teamcity-agent-2-temp:
+  teamcity-agent-2-logs:
   teamcity-agent-3-conf:
   teamcity-agent-3-work:
   teamcity-agent-3-home:
+  teamcity-agent-3-plugins:
+  teamcity-agent-3-tools:
+  teamcity-agent-3-system:
+  teamcity-agent-3-temp:
+  teamcity-agent-3-logs:
