@@ -7,6 +7,7 @@
 | Подключение из других контейнеров compose | `postgres:5432` |
 | Пользователь / пароль | `postgres` / `admin123` |
 | БД по умолчанию | `postgres` |
+| Другие базы | `sonarqube` — база [SonarQube](../sonarqube/README.md), создаётся сама при первом запуске SonarQube; вручную не править |
 | Контейнеры / сервисы | `postgres`, `pgadmin` |
 | Версия | PostgreSQL 16.15, pgAdmin 9.18 |
 | Данные | именованный том Docker `devstack_postgres-data` (не папка, см. ниже) |

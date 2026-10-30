@@ -1,6 +1,6 @@
 # Локальные сервисы в Docker
 
-Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг Spring-приложений (Prometheus + Grafana), конвертер документов, тестовая почта (Mailpit), Cassandra, просмотр логов (Dozzle) и CI/CD (TeamCity) с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`, TeamCity подключён из своей папки). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus, Grafana и Cassandra: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
+Пять S3-совместимых хранилищ плюс Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг Spring-приложений (Prometheus + Grafana), конвертер документов, тестовая почта (Mailpit), Cassandra, просмотр логов (Dozzle), CI/CD (TeamCity) и анализ кода (SonarQube) с веб-интерфейсами. Всё описано в одном [docker-compose.yml](docker-compose.yml) (проект `devstack`, TeamCity подключён из своей папки). Порты не пересекаются, поэтому можно запускать всё сразу. Данные лежат в `<папка>/data` (у zenko ещё `metadata`) и сохраняются после пересоздания контейнеров. Исключение — PostgreSQL, pgAdmin, Prometheus, Grafana, Cassandra и SonarQube: их данные в именованных томах Docker (см. [postgres/README.md](postgres/README.md#где-хранятся-данные)).
 
 ## Ссылки, порты, ключи
 
@@ -51,6 +51,14 @@ PostgreSQL доступен на порту **5434**.
 
 Агенты с JDK 8/11/17/21, Maven и Docker; сборки из git (Bitbucket и др.), локального git-репозитория или папки на диске C (другие папки — `TEAMCITY_HOST_DIR` в `.env`). По умолчанию работает один агент, ещё два добавляются в `menu.bat` → 10 «Агенты CI/CD». Логи и артефакты хранятся у 3 последних билдов каждой конфигурации, очистка — после каждого билда (число меняется там же или `teamcity\log-retention.bat`). Отдельных контейнеров для просмотра не нужно: база TeamCity — в pgAdmin (сервер `teamcity-db`), метрики — дашборд «TeamCity» в Grafana. Подробно — [teamcity/README.md](teamcity/README.md).
 
+### Анализ кода
+
+| Сервис | Папка | Веб-интерфейс | Подключение | Вход |
+|---|---|---|---|---|
+| SonarQube Community Build 26.10 (статический анализ) | [sonarqube](sonarqube/README.md) | http://localhost:9010; страница анализа — http://localhost:9011 | анализ проекта — на странице 9011 или `sonarqube\analyze.bat <папка>`; из TeamCity — `http://sonarqube:9000` | `admin` / `admin123` |
+
+Отдельная группа: `start-code.bat` / `stop-code.bat`, в `start-services.bat` не входит. Maven- и Gradle-проекты анализируются вместе с покрытием тестами, pom и build.gradle не меняются.
+
 ## Запуск
 
 Двойной клик:
@@ -62,6 +70,8 @@ PostgreSQL доступен на порту **5434**.
 | `start-s3.bat` / `stop-s3.bat` | только S3-хранилища |
 | `start-services.bat` / `stop-services.bat` | только Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark, мониторинг, конвертер, почта, Cassandra, Dozzle (вместе с UI) |
 | `start-cicd.bat` / `stop-cicd.bat` | только CI/CD: TeamCity, его БД, агенты |
+| `start-code.bat` / `stop-code.bat` | только анализ кода: SonarQube и страница анализа (вместе с ними поднимается PostgreSQL) |
+| `sonarqube\analyze.bat <папка>` | анализ Maven- или Gradle-проекта в SonarQube из командной строки (то же — на странице http://localhost:9011) |
 | `teamcity\start.bat` / `teamcity\stop.bat` | то же, из папки `teamcity` |
 | `status.bat` | статус контейнеров + ссылки |
 | `menu.bat` | меню: всё / группа / один сервис (старт, стоп, рестарт, логи), агенты TeamCity (добавить, запустить, удалить), открыть UI в браузере |
@@ -73,7 +83,7 @@ PostgreSQL доступен на порту **5434**.
 
 Составы групп задаются в `_groups.bat`, ссылки для вывода в консоль — в `_links.bat`, часовой пояс ПК для контейнеров TeamCity определяет `teamcity\_tz.bat`, добавленных агентов TeamCity находит `teamcity\_agents.bat`, сеть Docker со свободной подсетью создаёт `_net.bat` (с `_net.ps1`). Это служебные файлы, запускать их не нужно.
 
-**Память.** Всё вместе занимает около 11,5 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, конвертер ~0.5 ГБ, почта ~30 МБ, Cassandra ~1.5 ГБ, Dozzle ~30 МБ, TeamCity ~2.5 ГБ (сервер ~1.8 ГБ, агент ~0.7 ГБ в простое, каждый следующий агент — ещё столько же и больше во время сборки), остальное меньше. Без TeamCity — около 8,5 ГБ: `start-s3.bat` + `start-services.bat`. При первом запуске TeamCity образ агента собирается несколько минут. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
+**Память.** Всё вместе занимает около 13,5 ГБ RAM: Spark ~2.5 ГБ, Elasticsearch ~1.5 ГБ, Kibana ~1 ГБ, Kafka ~0.7 ГБ, PostgreSQL + pgAdmin ~0.4 ГБ, Prometheus + Grafana ~0.3 ГБ, конвертер ~0.5 ГБ, почта ~30 МБ, Cassandra ~1.5 ГБ, Dozzle ~30 МБ, TeamCity ~2.5 ГБ (сервер ~1.8 ГБ, агент ~0.7 ГБ в простое, каждый следующий агент — ещё столько же и больше во время сборки), SonarQube ~2 ГБ и страница анализа ~0.1 ГБ, остальное меньше. Без TeamCity и SonarQube — около 8,5 ГБ: `start-s3.bat` + `start-services.bat`. При первом запуске TeamCity образ агента собирается несколько минут. Если Docker Desktop выделено мало памяти, запускайте группами или поднимите лимит: Settings → Resources (или `.wslconfig` при WSL2-бэкенде).
 
 То же из консоли (в этой папке):
 

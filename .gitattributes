@@ -12,5 +12,9 @@ teamcity/agent/devstack-sync text eol=lf
 # скрипты сервера TeamCity (инициализация, хранение логов) запускаются в Linux-контейнере: только LF
 teamcity/*.sh text eol=lf
 
+# скрипты и страница анализа SonarQube выполняются в Linux-контейнерах: только LF
+sonarqube/*.sh text eol=lf
+sonarqube/ui/** text eol=lf
+
 # веб-интерфейс Cassandra собирается в Linux-образе: только LF
 cassandra/ui/** text eol=lf

@@ -1,0 +1,16 @@
+{
+  "name": "devstack-sonarqube-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Страница анализа SonarQube для docker_conf: выбор папки проекта, запуск анализа, живой лог, ссылка на отчёт",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "4.22.3"
+  }
+}
