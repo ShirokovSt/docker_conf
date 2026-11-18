@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Анализ кода — SonarQube</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #6b7385; --line: #e2e5eb;
+    --accent: #1f6feb; --accent-weak: #e8f0fe; --danger: #c62828; --ok: #2e7d32; --warn: #b26a00; --code: #f1f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1b1f26; --text: #e4e7ec; --muted: #8b93a5; --line: #2b313b;
+      --accent: #4c8dff; --accent-weak: #1e2a40; --danger: #ef5350; --ok: #66bb6a; --warn: #ffb74d; --code: #222831;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; }
+  header .info { color: var(--muted); font-size: 12px; }
+  header nav { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+  header nav label { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  header nav input { width: 56px; padding: 2px 6px; }
+  .layout { display: grid; grid-template-columns: 310px 1fr; height: calc(100vh - 49px); }
+  aside { background: var(--panel); border-right: 1px solid var(--line); padding: 12px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+  main { padding: 16px; overflow: auto; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  button, .btn { font: inherit; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; text-decoration: none; display: inline-block; }
+  button:hover, .btn:hover { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary, .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--danger); }
+  button.small, .btn.small { padding: 1px 8px; font-size: 12px; }
+  input, select { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); }
+  .mono { font-family: ui-monospace, Consolas, monospace; }
+  .muted { color: var(--muted); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; }
+  .form { display: grid; grid-template-columns: 130px 1fr; gap: 10px 12px; align-items: center; }
+  .wide { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 0 6px; border-radius: 10px; background: var(--accent-weak); color: var(--accent); white-space: nowrap; }
+  .badge.ok { background: transparent; color: var(--ok); border: 1px solid var(--ok); }
+  .badge.err { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .badge.warn { background: transparent; color: var(--warn); border: 1px solid var(--warn); }
+  /* список проектов */
+  .proj { padding: 8px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .proj:hover { background: var(--accent-weak); }
+  .proj.sel { background: var(--accent-weak); border-color: var(--accent); }
+  .proj .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .proj .sub { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .proj .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; align-items: center; }
+  /* метрики проекта */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 12px; }
+  .metric { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .metric .v { font-size: 18px; font-weight: 600; }
+  .metric .l { font-size: 11.5px; color: var(--muted); }
+  /* лог и таблицы */
+  pre#log { margin: 0; background: var(--code); padding: 10px 12px; border-radius: 8px; height: 42vh; overflow: auto;
+    font: 12px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  pre#log .e { color: var(--danger); font-weight: 600; }
+  pre#log .s { color: var(--ok); font-weight: 600; }
+  table.grid { border-collapse: collapse; width: 100%; }
+  table.grid th, table.grid td { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: middle; }
+  table.grid th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  table.grid tr.cur td { background: var(--accent-weak); }
+  table.grid tr[data-run] { cursor: pointer; }
+  /* окно выбора папки */
+  .overlay[hidden] { display: none; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 20; }
+  .dlg { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: min(920px, 96vw); height: min(640px, 92vh);
+    display: grid; grid-template-rows: auto auto 1fr auto; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+  .dlg > * { min-width: 0; }
+  .dlg-head { display: flex; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; }
+  .dlg-head button { margin-left: auto; }
+  .dlg-bar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+  .dlg-bar input { flex: 1; font-family: ui-monospace, Consolas, monospace; }
+  .dlg-body { display: grid; grid-template-columns: 150px 1fr; min-height: 0; }
+  .drives { border-right: 1px solid var(--line); padding: 8px; overflow: auto; }
+  .drive { padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+  .drive:hover, .drive.sel { background: var(--accent-weak); }
+  .folders { overflow: auto; padding: 6px; }
+  .folder { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; cursor: default; user-select: none; }
+  .folder:hover { background: var(--code); }
+  .folder.sel { background: var(--accent-weak); color: var(--accent); }
+  .dlg-foot { display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .dlg-foot .sel-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toast { position: fixed; right: 16px; bottom: 16px; max-width: 520px; padding: 10px 14px; border-radius: 8px; color: #fff; background: var(--danger); box-shadow: 0 4px 16px rgba(0,0,0,.2); white-space: pre-wrap; z-index: 30; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; height: auto; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Анализ кода</h1>
+  <span class="info" id="info">SonarQube: проверка…</span>
+  <nav>
+    <label title="Сколько анализов разных проектов может идти одновременно (каждый - отдельная сборка, нужна память)">
+      Одновременно анализов <input type="number" id="maxParallel" min="1" max="9"></label>
+    <a class="btn" id="sonarLink" href="http://localhost:9010" target="_blank">Открыть SonarQube</a>
+  </nav>
+</header>
+<div class="layout">
+  <aside>
+    <button class="primary" id="btnNew">+ Новый анализ</button>
+    <div class="muted" id="projHint">Проекты</div>
+    <div id="projects"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<!-- окно выбора папки -->
+<div class="overlay" id="dlg" hidden>
+  <div class="dlg">
+    <div class="dlg-head">Выбор папки проекта <button class="small" id="dlgClose">✕</button></div>
+    <div class="dlg-bar">
+      <button id="dlgUp" title="На уровень вверх">↑</button>
+      <input id="dlgPath" placeholder="Путь, например G:\work — Enter для перехода">
+    </div>
+    <div class="dlg-body">
+      <div class="drives" id="dlgDrives"></div>
+      <div class="folders" id="dlgFolders"></div>
+    </div>
+    <div class="dlg-foot">
+      <span class="sel-path mono" id="dlgSel"></span>
+      <button id="dlgCancel">Отмена</button>
+      <button class="primary" id="dlgOk">Выбрать</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// view: 'new' | 'project'; project - id проекта (ключ SonarQube или 'path:<папка>'); run - запуск, лог которого показан
+const state = { view: 'new', project: null, run: null, runs: [], projects: [], running: [], sonarUrl: 'http://localhost:9010', newPath: null, newTool: null, analyses: {} };
+let source = null; // EventSource лога
+
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => t.remove(), 6000);
+}
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+// /host/g/work/app <-> G:\work\app
+const toWin = (p) => { const m = /^\/host\/([a-z])(\/.*)?$/i.exec(p || ''); return m ? m[1].toUpperCase() + ':' + (m[2] || '\\').replace(/\//g, '\\') : p; };
+const toHost = (p) => { const m = /^([a-z]):[\\/]?(.*)$/i.exec((p || '').trim().replace(/^"|"$/g, '')); return m ? ('/host/' + m[1].toLowerCase() + '/' + m[2].replace(/\\/g, '/')).replace(/\/+$/, '') : (p || '').trim(); };
+const TOOL = { maven: 'Maven', gradle: 'Gradle' };
+const fmtDate = (d) => (d ? new Date(d).toLocaleString('ru') : '');
+
+// ---------- статусы ----------
+const STATUS = { running: ['идёт анализ', ''], sent: ['отчёт отправлен', 'ok'], failed: ['ошибка', 'err'], stopped: ['остановлен', 'warn'], interrupted: ['прерван', 'warn'] };
+const CE = { PENDING: ['в очереди SonarQube', ''], IN_PROGRESS: ['обрабатывается', ''], SUCCESS: ['обработан', 'ok'], FAILED: ['ошибка обработки', 'err'], CANCELED: ['обработка отменена', 'warn'] };
+const GATE = { OK: ['Quality Gate пройден', 'ok'], ERROR: ['Quality Gate не пройден', 'err'] };
+const badge = ([text, cls]) => `<span class="badge ${cls}">${esc(text)}</span>`;
+function runChips(run) {
+  let html = badge(STATUS[run.status] || [run.status, '']);
+  if (run.status === 'sent') html += ' ' + (run.gate ? badge(GATE[run.gate] || [run.gate, '']) : badge(CE[run.ce] || CE.PENDING));
+  return html;
+}
+const reportUrl = (key) => `${state.sonarUrl}/dashboard?id=${encodeURIComponent(key)}`;
+const projectById = (id) => state.projects.find((p) => p.id === id);
+const runsOf = (id) => state.runs.filter((r) => r.project === id);
+
+// ---------- параметры анализа (одинаковые для нового и повторного) ----------
+function optionsHtml(o) {
+  const jdks = ['21', '17', '11', '8'];
+  const other = !jdks.includes(o.jdk);
+  return `
+    <label>Тесты</label>
+    <div class="wide"><label><input type="checkbox" id="optTests" ${o.tests ? 'checked' : ''}> запускать — нужны для покрытия; без них быстрее</label></div>
+    <label>JDK</label>
+    <div class="wide">
+      <select id="optJdk">${jdks.map((j) => `<option ${j === o.jdk ? 'selected' : ''}>${j}</option>`).join('')}<option value="" ${other ? 'selected' : ''}>другая…</option></select>
+      <input id="optJdkOther" type="number" min="8" max="99" placeholder="например 25" style="width:120px" value="${other ? esc(o.jdk) : ''}" ${other ? '' : 'hidden'}>
+      <span class="muted">на ней идут сборка и тесты</span>
+    </div>
+    <label>Ключ проекта</label>
+    <div class="wide"><input id="optKey" style="flex:1; min-width:220px" value="${esc(o.key || '')}" placeholder="необязательно: по умолчанию из сборки (groupId:artifactId / group:имя)"></div>`;
+}
+function bindOptions() { $('optJdk').onchange = () => { $('optJdkOther').hidden = !!$('optJdk').value; }; }
+const readOptions = () => ({ tests: $('optTests').checked, jdk: $('optJdk').value || $('optJdkOther').value, key: $('optKey').value });
+
+async function startAnalysis(path) {
+  try {
+    const run = await api('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, ...readOptions() }) });
+    await refresh();
+    const saved = state.runs.find((r) => r.id === run.id);
+    state.view = 'project'; state.project = saved ? saved.project : 'path:' + run.path; state.run = run.id;
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- вид: новый анализ ----------
+function renderNew() {
+  $('main').innerHTML = `
+    <section class="card">
+      <h2>Новый анализ</h2>
+      <div class="form">
+        <label>Папка проекта</label>
+        <div class="wide">
+          <input id="newPath" class="mono" style="flex:1; min-width:260px" readonly placeholder="не выбрана" value="${esc(state.newPath ? toWin(state.newPath) : '')}">
+          ${state.newTool ? `<span class="badge">${TOOL[state.newTool]}</span>` : ''}
+          <button id="btnPick">Выбрать папку…</button>
+        </div>
+        ${optionsHtml({ tests: true, jdk: '21', key: '' })}
+      </div>
+      <div class="actions">
+        <button class="primary" id="btnRun" ${state.newPath ? '' : 'disabled'}>Запустить анализ</button>
+        <span class="muted">Maven или Gradle определяется сам; pom.xml и build.gradle не меняются.</span>
+      </div>
+    </section>`;
+  bindOptions();
+  $('btnPick').onclick = () => openPicker((p, tool) => { state.newPath = p; state.newTool = tool; renderNew(); });
+  $('btnRun').onclick = () => startAnalysis(state.newPath);
+}
+
+// ---------- вид: проект ----------
+const METRICS = [
+  ['bugs', 'Баги'], ['vulnerabilities', 'Уязвимости'], ['code_smells', 'Code smells'], ['security_hotspots', 'Security Hotspots'],
+  ['coverage', 'Покрытие', '%'], ['duplicated_lines_density', 'Дублирование', '%'], ['ncloc', 'Строк кода'],
+];
+function renderProject() {
+  const p = projectById(state.project);
+  if (!p) { state.view = 'new'; return render(); }
+  const runs = runsOf(p.id);
+  const last = runs[0];
+  if (runs.length && !runs.some((r) => r.id === state.run)) state.run = runs[0].id;
+  $('main').innerHTML = `
+    <section class="card">
+      <div class="wide" style="justify-content:space-between; align-items:flex-start">
+        <div style="min-width:0">
+          <h2 style="margin:0">${esc(p.name)}</h2>
+          ${p.key ? `<div class="muted mono">${esc(p.key)}</div>` : '<div class="muted">в SonarQube ещё нет — анализ не дошёл до отправки</div>'}
+        </div>
+        <div class="wide" id="projActions"></div>
+      </div>
+      <div id="projMetrics"></div>
+      <div class="form" style="margin-top:14px">
+        <label>Папка проекта</label>
+        <div class="wide">
+          <span class="mono" id="projPath">${p.path ? esc(toWin(p.path)) : '<span class="muted">неизвестна — проект анализировался не с этой страницы</span>'}</span>
+          <button class="small" id="btnProjPick">${p.path ? 'Другая папка…' : 'Выбрать папку…'}</button>
+        </div>
+        ${optionsHtml({ tests: last ? last.tests : true, jdk: last ? last.jdk : '21', key: (last && last.key) || p.key || '' })}
+      </div>
+      <div class="actions">
+        <button class="primary" id="btnRun">Запустить анализ</button>
+        <button class="danger" id="btnStop">Остановить</button>
+      </div>
+    </section>
+    ${runs.length ? `<section class="card">
+      <h2>Запуски со страницы</h2>
+      <table class="grid"><thead><tr><th>Начало</th><th>JDK</th><th>Тесты</th><th>Статус</th><th></th></tr></thead><tbody id="runs"></tbody></table>
+      <div class="wide" id="runHead" style="margin:12px 0 8px"></div>
+      <pre id="log"></pre>
+    </section>` : ''}
+    ${p.key ? `<section class="card"><h2>Анализы в SonarQube</h2><div id="analyses" class="muted">загрузка…</div></section>` : ''}`;
+  bindOptions();
+  $('btnProjPick').onclick = () => openPicker((path) => { p.path = path; $('projPath').textContent = toWin(path); $('btnProjPick').textContent = 'Другая папка…'; });
+  $('btnRun').onclick = () => {
+    if (p.path) return startAnalysis(p.path);
+    openPicker((path) => { p.path = path; startAnalysis(path); });
+  };
+  $('btnStop').onclick = async () => {
+    const run = runs.find((r) => state.running.includes(r.id));
+    if (run) try { await api(`/api/runs/${run.id}/stop`, { method: 'POST' }); } catch (e) { toast(e.message); }
+  };
+  if (runs.length) {
+    $('runs').onclick = (e) => { const tr = e.target.closest('tr[data-run]'); if (tr && !e.target.closest('a')) { state.run = tr.dataset.run; showLog(); renderRuns(); } };
+    showLog();
+  }
+  updateProject();
+  if (p.key) loadAnalyses(p.key);
+}
+// Части карточки, которые меняются со статусом анализа (без пересоздания формы)
+function updateProject() {
+  const p = projectById(state.project);
+  if (!p || !$('projActions')) return;
+  const runs = runsOf(p.id);
+  const busy = runs.some((r) => state.running.includes(r.id));
+  const lastReport = runs.find((r) => r.report && r.report.dashboardUrl);
+  const report = p.key ? reportUrl(p.key) : lastReport && lastReport.report.dashboardUrl;
+  $('projActions').innerHTML = (report ? `<a class="btn primary" href="${esc(report)}" target="_blank">Открыть отчёт</a>` : '') +
+    (p.path && runs.length ? `<button class="danger small" id="btnForget" ${busy ? 'disabled' : ''}>Убрать запуски со страницы</button>` : '');
+  if ($('btnForget')) $('btnForget').onclick = async () => {
+    if (!confirm(`Удалить запуски и логи ${toWin(p.path)} со страницы? Проект и анализы в SonarQube останутся.`)) return;
+    try { await api('/api/projects?path=' + encodeURIComponent(p.path), { method: 'DELETE' }); await refresh(); render(); } catch (e) { toast(e.message); }
+  };
+  const m = p.measures || {};
+  const gate = m.alert_status ? badge(GATE[m.alert_status] || ['Quality Gate: ' + m.alert_status, '']) : '';
+  $('projMetrics').innerHTML = p.key && (p.analysisDate || Object.keys(m).length) ? `
+    <div class="wide" style="margin-top:10px">${gate} <span class="muted">последний анализ: ${esc(fmtDate(p.analysisDate))}</span></div>
+    <div class="metrics">${METRICS.filter(([k]) => m[k] !== undefined).map(([k, l, u]) => `<div class="metric"><div class="v">${esc(m[k])}${u || ''}</div><div class="l">${l}</div></div>`).join('')}</div>` : '';
+  $('btnStop').disabled = !busy;
+  if (runs.length && $('runs')) renderRuns();
+}
+function renderRuns() {
+  const runs = runsOf(state.project);
+  $('runs').innerHTML = runs.map((r) => `<tr data-run="${esc(r.id)}" class="${r.id === state.run ? 'cur' : ''}">
+    <td>${esc(fmtDate(r.started))}</td><td>${esc(r.jdk)}</td><td>${r.tests ? 'да' : 'нет'}</td>
+    <td>${runChips(r)}</td><td class="muted mono" style="font-size:11.5px">${esc(toWin(r.path))}</td></tr>`).join('');
+  const run = runs.find((r) => r.id === state.run);
+  if (run) $('runHead').innerHTML = `<b>Лог запуска ${esc(fmtDate(run.started))}</b> ${runChips(run)}`;
+}
+async function loadAnalyses(key) {
+  try {
+    const list = await api('/api/projects/analyses?key=' + encodeURIComponent(key));
+    if (state.project !== key || !$('analyses')) return;
+    $('analyses').classList.remove('muted');
+    $('analyses').innerHTML = list.length ? `<table class="grid"><thead><tr><th>Дата</th><th>Версия</th><th>События</th></tr></thead><tbody>${
+      list.map((a) => `<tr><td>${esc(fmtDate(a.date))}</td><td>${esc(a.projectVersion || '')}</td><td>${(a.events || [])
+        .map((e) => badge([e.category === 'QUALITY_GATE' ? 'Quality Gate: ' + e.name : e.category === 'VERSION' ? 'версия ' + e.name : e.name, e.category === 'QUALITY_GATE' ? (/red|failed|ERROR/i.test(e.name) ? 'err' : 'ok') : '']))
+        .join(' ')}</td></tr>`).join('')}</tbody></table>` : 'Анализов нет';
+  } catch (e) { if ($('analyses')) $('analyses').textContent = 'Не удалось загрузить: ' + e.message; }
+}
+function showLog() {
+  if (source) { source.close(); source = null; }
+  const log = $('log'); if (!log) return;
+  log.textContent = '';
+  source = new EventSource(`/api/runs/${state.run}/log`);
+  source.addEventListener('log', (e) => appendLog(JSON.parse(e.data)));
+  source.addEventListener('end', () => { if (source) source.close(); source = null; refresh(); });
+}
+function appendLog(text) {
+  const log = $('log'); if (!log) return;
+  const atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+  for (const line of text.split(/(?<=\n)/)) {
+    const span = document.createElement('span');
+    if (/^\[!\]|BUILD FAILURE|BUILD FAILED|FAILURE:|^\s*\* What went wrong/.test(line)) span.className = 'e';
+    else if (/ANALYSIS SUCCESSFUL|BUILD SUCCESS|EXECUTION SUCCESS|^Отчёт:/.test(line)) span.className = 's';
+    span.textContent = line;
+    log.appendChild(span);
+  }
+  if (atEnd) log.scrollTop = log.scrollHeight;
+}
+
+// ---------- список проектов слева: все из SonarQube + запуски со страницы ----------
+function renderProjects() {
+  $('projects').innerHTML = state.projects.map((p) => {
+    const run = p.lastRun;
+    const m = p.measures || {};
+    const chips = [
+      p.running ? badge(STATUS.running) : run && run.status !== 'sent' && (!p.analysisDate || run.started > p.analysisDate) ? badge(STATUS[run.status] || [run.status, '']) : '',
+      m.alert_status ? badge(GATE[m.alert_status] || [m.alert_status, '']) : '',
+      `<span class="muted" style="font-size:11px">${esc(fmtDate(p.analysisDate || (run && run.started)))}</span>`,
+    ].join(' ');
+    return `<div class="proj ${state.view === 'project' && state.project === p.id ? 'sel' : ''}" data-id="${esc(p.id)}">
+      <div class="name">${esc(p.name)}</div>
+      <div class="sub" title="${esc(p.path ? toWin(p.path) : p.key)}">${esc(p.path ? toWin(p.path) : p.key)}</div>
+      <div class="chips">${chips}</div></div>`;
+  }).join('') || '<div class="muted">Пока ничего не анализировалось</div>';
+}
+$('projects').onclick = (e) => {
+  const el = e.target.closest('.proj'); if (!el) return;
+  state.view = 'project'; state.project = el.dataset.id; state.run = null;
+  render();
+};
+$('btnNew').onclick = () => { state.view = 'new'; render(); };
+
+function render() {
+  renderProjects();
+  if (state.view === 'project') renderProject(); else { if (source) { source.close(); source = null; } renderNew(); }
+}
+
+// ---------- состояние ----------
+let lastSig = '';
+async function refresh() {
+  try {
+    const info = await api('/api/info');
+    state.sonarUrl = info.sonarUrl; $('sonarLink').href = info.sonarUrl;
+    $('info').textContent = (info.sonar === 'UP' ? (info.token ? 'SonarQube: готов' : 'SonarQube: настраивается…') : `SonarQube: ${info.sonar === 'DOWN' ? 'не запущен' : 'запускается'}`) +
+      (info.running.length ? ` · идёт анализов: ${info.running.length} из ${info.settings.maxParallel}` : '');
+    if (document.activeElement !== $('maxParallel')) $('maxParallel').value = info.settings.maxParallel;
+    state.running = info.running;
+    const [runs, list] = await Promise.all([api('/api/runs'), api('/api/projects')]);
+    state.runs = runs; state.projects = list.projects;
+    $('projHint').textContent = list.sonarError ? 'Проекты (SonarQube недоступен — только запуски со страницы)' : 'Проекты';
+    // перерисовываем только при изменениях, чтобы не сбивать ввод в форме
+    const sig = JSON.stringify([state.running, runs.map((r) => [r.id, r.status, r.ce, r.gate, r.project]), list.projects.map((p) => [p.id, p.analysisDate, p.measures, p.running])]);
+    if (sig !== lastSig) {
+      const analysed = lastSig && state.view === 'project' && projectById(state.project) && projectById(state.project).key;
+      lastSig = sig;
+      renderProjects();
+      if (state.view === 'project') {
+        if (!$('projActions') || !projectById(state.project)) renderProject();
+        else if (runsOf(state.project).length && !$('runs')) renderProject();
+        else { updateProject(); if (analysed) loadAnalyses(projectById(state.project).key); }
+      }
+    }
+  } catch (e) { $('info').textContent = 'Ошибка: ' + e.message; }
+}
+$('maxParallel').onchange = async () => {
+  try { await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxParallel: Number($('maxParallel').value) }) }); refresh(); }
+  catch (e) { toast(e.message); refresh(); }
+};
+
+// ---------- окно выбора папки ----------
+const dlg = { path: null, sel: null, tools: {}, onPick: null };
+async function openPicker(onPick) {
+  dlg.onPick = onPick;
+  $('dlg').hidden = false;
+  let start = null;
+  try { start = localStorage.getItem('pickDir'); } catch { /* нет хранилища */ }
+  const { dirs } = await api('/api/dirs?path=/host');
+  $('dlgDrives').innerHTML = dirs.map((d) => `<div class="drive" data-path="${esc(d.path)}">💽 ${esc(d.name.toUpperCase())}:</div>`).join('');
+  await dlgGo(start || (dirs[0] && dirs[0].path) || '/host');
+}
+function closePicker() { $('dlg').hidden = true; }
+async function dlgGo(path) {
+  try {
+    const res = await api('/api/dirs?path=' + encodeURIComponent(path));
+    dlg.path = res.path; dlg.sel = null; dlg.tools = { [res.path]: res.tool };
+    $('dlgPath').value = toWin(res.path);
+    document.querySelectorAll('.drive').forEach((d) => d.classList.toggle('sel', res.path === d.dataset.path || res.path.startsWith(d.dataset.path + '/')));
+    for (const d of res.dirs) dlg.tools[d.path] = d.tool;
+    let html = res.dirs.map((d) => `<div class="folder" data-path="${esc(d.path)}">📁 <span>${esc(d.name)}</span>${d.tool ? ` <span class="badge">${TOOL[d.tool]}</span>` : ''}</div>`).join('');
+    if (!res.dirs.length) html = '<div class="muted" style="padding:8px">Подпапок нет</div>';
+    if (!res.detected && res.dirs.length) html = '<div class="muted" style="padding:4px 8px">Папок много — проекты не помечены</div>' + html;
+    if (res.total > res.dirs.length) html += `<div class="muted" style="padding:8px">… показаны первые ${res.dirs.length} из ${res.total} — введите путь в строке сверху</div>`;
+    $('dlgFolders').innerHTML = html;
+    try { localStorage.setItem('pickDir', res.path); } catch { /* нет хранилища */ }
+    dlgUpdate();
+  } catch (e) { toast(e.message); }
+}
+function dlgUpdate() {
+  const target = dlg.sel || dlg.path;
+  const tool = dlg.tools[target];
+  $('dlgSel').innerHTML = `${esc(toWin(target))} ${tool ? `<span class="badge">${TOOL[tool]}</span>` : tool === null && target !== '/host' ? '<span class="muted">— не проект Maven/Gradle?</span>' : ''}`;
+}
+$('dlgFolders').onclick = (e) => {
+  const f = e.target.closest('.folder'); if (!f) return;
+  document.querySelectorAll('.folder.sel').forEach((n) => n.classList.remove('sel'));
+  f.classList.add('sel'); dlg.sel = f.dataset.path; dlgUpdate();
+};
+$('dlgFolders').ondblclick = (e) => { const f = e.target.closest('.folder'); if (f) dlgGo(f.dataset.path); };
+$('dlgDrives').onclick = (e) => { const d = e.target.closest('.drive'); if (d) dlgGo(d.dataset.path); };
+$('dlgUp').onclick = () => { if (dlg.path && dlg.path.split('/').length > 3) dlgGo(dlg.path.replace(/\/[^/]+$/, '')); };
+$('dlgPath').onkeydown = (e) => { if (e.key === 'Enter') dlgGo(toHost($('dlgPath').value)); };
+$('dlgOk').onclick = async () => {
+  const target = dlg.sel || dlg.path;
+  try {
+    const { tool } = await api('/api/dirs?path=' + encodeURIComponent(target));
+    if (!tool) return toast('В этой папке нет pom.xml или build.gradle — выберите корневую папку Maven- или Gradle-проекта');
+    closePicker(); dlg.onPick(target, tool);
+  } catch (e) { toast(e.message); }
+};
+$('dlgCancel').onclick = closePicker;
+$('dlgClose').onclick = closePicker;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('dlg').hidden) closePicker(); });
+
+// старт: идёт анализ - показать его проект, иначе первый проект списка или форму нового анализа
+(async () => {
+  await refresh();
+  const cur = state.runs.find((r) => state.running.includes(r.id));
+  const first = cur ? cur.project : state.projects[0] && state.projects[0].id;
+  if (first) { state.view = 'project'; state.project = first; state.run = cur ? cur.id : null; }
+  render();
+  setInterval(refresh, 3000);
+})();
+</script>
+</body>
+</html>

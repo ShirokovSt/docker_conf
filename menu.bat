@@ -30,14 +30,16 @@ echo   7. Остановить сервисы
 echo   8. Запустить CI/CD - TeamCity, его БД и агенты
 echo   9. Остановить CI/CD
 echo  10. Агенты CI/CD - статус, добавить новый, запустить, удалить
+echo  11. Запустить анализаторы кода - SonarQube
+echo  12. Остановить анализаторы кода
 echo.
-echo  11. Запустить один
-echo  12. Остановить один
-echo  13. Перезапустить один
-echo  14. Логи одного - последние 200 строк
+echo  13. Запустить один
+echo  14. Остановить один
+echo  15. Перезапустить один
+echo  16. Логи одного - последние 200 строк
 echo.
-echo  15. Открыть веб-интерфейс
-echo  16. Ссылки и ключи
+echo  17. Открыть веб-интерфейс
+echo  18. Ссылки и ключи
 echo.
 echo   0. Выход
 echo.
@@ -54,12 +56,14 @@ if "%choice%"=="7"  set "group=%APP_SERVICES%" & set "action=stop"  & goto group
 if "%choice%"=="8"  goto ci_start
 if "%choice%"=="9"  set "group=%CI_SERVICES% %CI_AGENTS%" & set "action=stop" & goto group
 if "%choice%"=="10" goto cicd
-if "%choice%"=="11" set "action=start"   & goto pick
-if "%choice%"=="12" set "action=stop"    & goto pick
-if "%choice%"=="13" set "action=restart" & goto pick
-if "%choice%"=="14" set "action=logs"    & goto pick
-if "%choice%"=="15" goto open_ui
-if "%choice%"=="16" goto links
+if "%choice%"=="11" set "group=%CODE_SERVICES%" & set "action=start" & goto group
+if "%choice%"=="12" set "group=%CODE_SERVICES%" & set "action=stop"  & goto group
+if "%choice%"=="13" set "action=start"   & goto pick
+if "%choice%"=="14" set "action=stop"    & goto pick
+if "%choice%"=="15" set "action=restart" & goto pick
+if "%choice%"=="16" set "action=logs"    & goto pick
+if "%choice%"=="17" goto open_ui
+if "%choice%"=="18" goto links
 if "%choice%"=="0"  exit /b 0
 goto menu
 
@@ -106,8 +110,8 @@ echo.
 echo   1. S3 Manager - все хранилища   2. minio   3. rustfs   4. seaweedfs - Filer и Master
 echo   5. Kafka UI   6. Kibana   7. ActiveMQ   8. pgAdmin   9. Spark UI   10. Файлы Spark
 echo   11. Grafana   12. Prometheus   13. Конвертер - Swagger   14. TeamCity   15. Почта - Mailpit
-echo   16. Cassandra   17. Логи всех контейнеров - Dozzle
-echo   18. все сразу
+echo   16. Cassandra   17. Логи всех контейнеров - Dozzle   18. SonarQube   19. Анализ кода
+echo   20. все сразу
 echo   Enter - назад
 echo.
 set "n="
@@ -129,11 +133,13 @@ if "%n%"=="14" start "" http://localhost:8111
 if "%n%"=="15" start "" http://localhost:8025
 if "%n%"=="16" start "" http://localhost:8097
 if "%n%"=="17" start "" http://localhost:8098
-if "%n%"=="18" goto open_all
+if "%n%"=="18" start "" http://localhost:9010
+if "%n%"=="19" start "" http://localhost:9011
+if "%n%"=="20" goto open_all
 goto menu
 
 :open_all
-for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090 3000 9090 8111 8025 8097 8098) do start "" http://localhost:%%u
+for %%u in (9006 9001 9003 8888 9333 8080 5601 5050 4040 8090 3000 9090 8111 8025 8097 8098 9010 9011) do start "" http://localhost:%%u
 start "" http://localhost:8161/admin
 start "" http://localhost:8095/swagger-ui.html
 goto menu
@@ -145,6 +151,7 @@ echo   Сервисы:  6. kafka + kafka-ui   7. elasticsearch + kibana   8. act
 echo             11. spark + spark-files   12. prometheus + grafana   13. converter   14. CI/CD - TeamCity, БД, агенты
 echo             15. mailpit - тестовая почта   16. cassandra + UI
 echo             17. dozzle - логи всех контейнеров
+echo   Анализ:   18. sonarqube + страница анализа - при запуске вместе с ними поднимается postgres
 echo   UI:       9. s3manager - общий веб-интерфейс S3
 echo   При запуске хранилища 1-5 вместе с ним поднимается s3manager.
 echo   Enter - назад
@@ -170,6 +177,7 @@ if "%n%"=="14" set "svc=%CI_SERVICES% %CI_AGENTS%"
 if "%n%"=="15" set "svc=mailpit"
 if "%n%"=="16" set "svc=cassandra cassandra-ui"
 if "%n%"=="17" set "svc=dozzle"
+if "%n%"=="18" set "svc=sonarqube sonarqube-ui"
 if not defined svc goto menu
 if "%action%"=="start" if defined is_s3 set "svc=%svc% s3manager"
 rem CI/CD: запускаются только созданные агенты 2, 3 (остальные действия - со всеми)

@@ -1,5 +1,6 @@
 # Все локальные сервисы в одном файле: S3-хранилища + Kafka, Elasticsearch, ActiveMQ, PostgreSQL, Spark,
-# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов, тестовая почта (Mailpit), Cassandra, логи контейнеров (Dozzle); TeamCity - через include.
+# мониторинг (Prometheus + Grafana, в том числе метрики TeamCity), конвертер документов, тестовая почта (Mailpit), Cassandra, логи контейнеров (Dozzle),
+# анализ кода (SonarQube); TeamCity - через include.
 # Пути к данным относительные (от этой папки), поэтому папку docker_conf можно класть куда угодно.
 # Порты не пересекаются - можно запускать всё одновременно. Таблица портов - в README.md.
 # Группы сервисов (для start-s3.bat / start-services.bat) - в _groups.bat.
@@ -469,6 +470,78 @@ services:
       DOZZLE_IMAGE_CHECK_MODE: "off"
     restart: "no"
 
+  # ---------- Анализ кода (группа CODE_SERVICES в _groups.bat, start-code.bat) ----------
+
+  # Служебный, одноразовый: создаёт базу sonarqube в общем postgres, если её ещё нет, и завершается
+  # (в статусе - Exited (0), так и должно быть). SonarQube ждёт его завершения (depends_on ниже).
+  sonarqube-dbinit:
+    image: postgres:16.15
+    container_name: sonarqube-dbinit
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: admin123
+    entrypoint: ["sh", "/devstack/db-init.sh"]
+    volumes:
+      - ./sonarqube/db-init.sh:/devstack/db-init.sh:ro
+    depends_on:
+      - postgres
+    restart: "no"
+
+  # SonarQube Community Build - статический анализ кода: http://localhost:9010 (admin / admin123).
+  # Хост-порт 9010, потому что 9000 занят MinIO; из контейнеров (TeamCity) - http://sonarqube:9000.
+  # Данные (проекты, замечания, настройки) - в базе sonarqube общего postgres, плагины и поисковый индекс - в томах.
+  # Пароль admin123, адрес для ссылок и токен для анализа настраивает sonarqube-ui (sonarqube/ui/setup.sh).
+  sonarqube:
+    image: sonarqube:26.10.0.133078-community
+    container_name: sonarqube
+    ports:
+      - "9010:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://postgres:5432/sonarqube
+      SONAR_JDBC_USERNAME: postgres
+      SONAR_JDBC_PASSWORD: admin123
+      # Встроенный Elasticsearch (поисковый индекс SonarQube): heap 512 МБ, проверки ОС при старте выключены
+      SONAR_SEARCH_JAVAOPTS: -Xms512m -Xmx512m
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - sonarqube-logs:/opt/sonarqube/logs
+    depends_on:
+      sonarqube-dbinit:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # Страница анализа (своя, sonarqube/ui): выбор папки проекта, запуск анализа, живой лог, ссылка на отчёт -
+  # http://localhost:9011, без логина. При старте настраивает SonarQube (setup.sh), поэтому SonarQube запускается
+  # через этот сервис. Docker socket - чтобы запускать сборки проектов, поэтому порт открыт только для этого ПК.
+  # Диски ПК видны странице как /host/<диск> (только чтение); SONAR_HOST_DIR в .env - показать одну папку.
+  # Образ собирается при каждом up (pull_policy: build): без изменений - из кэша за секунды.
+  sonarqube-ui:
+    build: ./sonarqube/ui
+    image: devstack/sonarqube-ui:1
+    pull_policy: build
+    container_name: sonarqube-ui
+    ports:
+      - "127.0.0.1:9011:8080"
+    environment:
+      SONAR_URL: http://sonarqube:9000
+      SONAR_PUBLIC_URL: http://localhost:9010
+      SONAR_ADMIN_PASSWORD: admin123
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: admin123
+      # профиль пользователя Windows: .m2 и .gradle/gradle.properties для сборок
+      HOST_USERPROFILE: ${USERPROFILE-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/desktop/mnt/host/${SONAR_HOST_DIR-}:/host/${SONAR_HOST_DIR-}:ro
+      - sonarqube-ui-data:/data
+    depends_on:
+      - sonarqube
+    restart: "no"
+
 # Сеть проекта devstack_default создаётся не compose, а _net.bat при первом запуске из bat-файлов: он подбирает
 # подсеть, свободную на этом ПК. Сам Docker берёт подсети из 172.17-172.31, а там же бывают сети, к которым
 # подключён ПК (VPN и т.п.): при пересечении контейнеры до них не достают. Compose подключается к готовой сети
@@ -486,3 +559,7 @@ volumes:
   prometheus-data:
   grafana-data:
   cassandra-data:
+  sonarqube-data:
+  sonarqube-extensions:
+  sonarqube-logs:
+  sonarqube-ui-data:
